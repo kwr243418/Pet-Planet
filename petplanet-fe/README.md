@@ -58,10 +58,3 @@ src/
 docs/           API_SPEC_FE1.md, SCREEN_FLOW.md, TEST_CHECKLIST_DAY10.md
 tests/          node:test 단위/통합 테스트
 ```
-
-## 팀 연동 메모
-
-- **BE1**: `docs/API_SPEC_FE1.md`의 응답 형태(camelCase, 에러 `{status, code, message, errors}`)를 맞춰 주시면 목→실제 전환 시 화면 수정이 거의 없습니다. 다른 부분은 `src/api/index.js`에서 맞추면 돼요.
-- **FE2**: 하단 탭의 `예약`, `쇼핑`과 마이페이지의 예약/주문 내역은 `/reservations/*`, `/shop/*` 라우트로 연결해 두었어요(`App.jsx`). 공통 컴포넌트·토큰·`http` 클라이언트·`useAuth()` 그대로 쓰시면 됩니다.
-- 목 데이터의 장소·회원·리뷰는 **모두 가상 데이터**입니다(지하철역 좌표만 실제 근사값). 시연 전 공공데이터 적재 DB로 교체하세요.
-- 목 데이터는 브라우저 localStorage에 저장됩니다. 마이페이지 하단 "목 데이터 초기화"로 리셋.
