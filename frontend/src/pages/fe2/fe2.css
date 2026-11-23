@@ -1,0 +1,647 @@
+/* FE2 화면 전용 스타일 — 색은 tokens.css 변수만 사용해요 */
+.fe2-toolbar {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.fe2-search {
+  display: flex;
+  gap: 8px;
+}
+.fe2-search__input {
+  height: 48px;
+  width: 280px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+}
+.fe2-search__input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.fe2-product-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1000px) {
+  .fe2-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .fe2-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 440px) {
+  .fe2-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.fe2-product.card {
+  padding: 16px;
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe2-product__banner {
+  position: relative;
+  height: 120px;
+  border-radius: var(--r-md);
+  background: var(--mint-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.fe2-product__banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fe2-product__banner .en {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--green);
+  opacity: 0.7;
+}
+.fe2-product__soldout {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--beige);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+}
+.fe2-product__name {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+}
+.fe2-product__rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fe2-product__price {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.fe2-product__stock {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terra);
+}
+
+.fe2-cartbar {
+  position: sticky;
+  bottom: 16px;
+  margin-top: 32px;
+  padding: 12px 12px 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: var(--r-pill);
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+.fe2-cartbar p {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.fe2-cartbar span {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ---------- 병원 상세 (S04-0) ---------- */
+.fe2-hospital {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fe2-hospital__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fe2-hospital__name {
+  margin: 0;
+  font-size: 28px;
+  line-height: 36px;
+}
+.fe2-hospital__rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.fe2-hospital__score {
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 700;
+}
+.fe2-hospital__max,
+.fe2-hospital__count {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.fe2-info {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 20px;
+  font-size: 15px;
+}
+.fe2-info dt {
+  color: var(--ink-2);
+}
+.fe2-info dd {
+  margin: 0;
+}
+
+.fe2-tabs {
+  margin-top: 24px;
+}
+.fe2-reviews,
+.fe2-about {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.fe2-reviews__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.fe2-dist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+  font-size: 13px;
+}
+.fe2-dist__row {
+  display: grid;
+  grid-template-columns: 32px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+}
+.fe2-dist__bar {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--beige);
+  overflow: hidden;
+}
+.fe2-dist__bar span {
+  display: block;
+  height: 100%;
+  background: var(--terra);
+}
+.fe2-reviews__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fe2-review-meta {
+  margin: 6px 0 0;
+  padding-left: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fe2-about h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.fe2-about p {
+  margin: 0;
+  line-height: 1.7;
+}
+.fe2-about__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- 병원 진료 예약 (S04) ---------- */
+.fe2-form {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fe2-section,
+.fe2-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fe2-step-title {
+  margin: 0;
+  font-size: 18px;
+}
+.fe2-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.fe2-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terra);
+}
+
+.fe2-pets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.fe2-pet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  text-align: left;
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--beige);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.fe2-pet span {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fe2-pet.is-on {
+  background: var(--white);
+  border-color: var(--green);
+}
+.fe2-pet:focus-visible,
+.fe2-slot:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.fe2-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 280px;
+  font-size: 14px;
+}
+.fe2-date {
+  height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--beige);
+  color: var(--ink);
+  font: inherit;
+}
+.fe2-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fe2-slot {
+  min-width: 80px;
+  height: 44px;
+  padding: 0 18px;
+  border: 2px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--beige);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.fe2-slot.is-on {
+  background: var(--white);
+  border-color: var(--green);
+  font-weight: 700;
+}
+.fe2-slot:disabled {
+  opacity: 0.45;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.fe2-route {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.fe2-route li {
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--beige-soft);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.fe2-route li:not(:last-child)::after {
+  content: '→';
+  margin-left: 12px;
+  color: var(--ink-3);
+}
+.fe2-route li.is-on {
+  background: var(--mint);
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* ---------- 펫 호텔 객실 예약 (S05) ---------- */
+.fe2-pet__weight {
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--green);
+}
+.fe2-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.fe2-rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.fe2-room {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  text-align: left;
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--beige);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.fe2-room.is-on {
+  background: var(--white);
+  border-color: var(--green);
+}
+.fe2-room.is-off {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.fe2-room:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.fe2-room__max {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.fe2-room__ok {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+.fe2-room__no {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terra);
+}
+.fe2-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* ---------- 장바구니 · 주문서 (S07) ---------- */
+.fe2-cart {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .fe2-cart {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.fe2-cart__list {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fe2-line.card {
+  padding: 16px;
+  border-radius: var(--r-lg);
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+.fe2-line__banner {
+  height: 96px;
+  border-radius: var(--r-md);
+  background: var(--mint-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fe2-line__banner .en {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--green);
+  opacity: 0.7;
+}
+.fe2-line__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fe2-line__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+@media (max-width: 560px) {
+  .fe2-line.card {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .fe2-line__banner {
+    height: 72px;
+  }
+  .fe2-line__side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+.fe2-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  width: fit-content;
+  border-radius: var(--r-pill);
+  background: var(--beige);
+}
+.fe2-qty button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.fe2-qty button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fe2-qty button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.fe2-qty output {
+  min-width: 36px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.fe2-checkout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fe2-sum {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  font-size: 15px;
+}
+.fe2-sum dt {
+  color: var(--ink-2);
+}
+.fe2-sum dd {
+  margin: 0;
+  text-align: right;
+}
+.fe2-total {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fe2-total b {
+  font-size: 28px;
+}
+.fe2-order-item {
+  display: block;
+}
+
+/* ---------- 마이페이지 예약 · 주문 칸 (S08) ---------- */
+.fe2-my-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fe2-my-item {
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--beige-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe2-my-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fe2-my-head b {
+  font-size: 15px;
+}
+.fe2-my-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fe2-my-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fe2-my-detail {
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--r-md);
+  background: var(--white);
+  font-size: 13px;
+}
+
+.fe2-my-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

@@ -14,6 +14,8 @@ import { categoryMeta } from '../utils/categories.js';
 import { GENDER_LABEL, ROLE_LABEL, formatKm } from '../utils/format.js';
 import { lineName, stationBase } from '../utils/subway.js';
 import { validateName } from '../utils/validators.js';
+import MyReservations from './fe2/MyReservations.jsx';
+import MyOrders from './fe2/MyOrders.jsx';
 
 const MY_STEPS = ['회원가입', '반려동물 등록', '마이페이지', '통합 리뷰'];
 
@@ -107,7 +109,7 @@ export default function MyPage() {
               </Link>
             </div>
             {/* FE2: hospital_reservations · hotel_reservations 목록, 상태 칩(승인대기/예약확정), [취소]/[입실 안내] */}
-            <EmptyState compact title="진행 중인 예약이 없어요" desc="동물병원 진료나 펫 호텔을 예약해 보세요." />
+            <MyReservations />
           </div>
           <div className="panel card" id="orders">
             <div className="panel__head">
@@ -119,7 +121,7 @@ export default function MyPage() {
               </Link>
             </div>
             {/* FE2: orders 목록, 배송 단계 노선(결제완료→배송준비→배송중→배송완료), [주문 상세]/[주문 취소] */}
-            <EmptyState compact title="주문 내역이 없어요" desc="펫 스토어에서 외출 준비물을 담아 보세요." />
+            <MyOrders />
           </div>
         </section>
 
