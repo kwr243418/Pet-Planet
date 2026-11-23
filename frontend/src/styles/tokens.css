@@ -1,0 +1,55 @@
+/* =========================================================
+   펫플래닛 디자인 토큰 — 팀 목업 "지하철 노선도 콘셉트"
+   규칙: 메인 민트 / 짙은 초록 / 크림 / 테라코타 4색 (+ 흰색과 목업에 쓰인 같은 계열 톤)
+   ========================================================= */
+:root {
+  /* 4 core colors */
+  --mint: #c4ebc3;
+  --green: #264536;
+  --cream: #fbf8f1;
+  --terra: #c8673f;
+
+  /* 같은 계열 톤 (목업에서 추출) */
+  --mint-soft: #e2f3e0; /* R 타일, 연한 카드 */
+  --mint-deep: #9fd5a3; /* 일러스트 그림자, 완료 구간 */
+  --beige: #ede7d9; /* 선택 버튼 바탕, S·M 타일 */
+  --beige-soft: #f4eee2;
+  --white: #ffffff;
+  --ring: #e6e1d6; /* 미래 역(비활성) 링 */
+
+  /* 일러스트 전용 (강아지 털) */
+  --fur: #f0c895;
+  --fur-deep: #d29962;
+  --fur-light: #f7e6cc;
+
+  /* 텍스트 = 짙은 초록의 투명도 단계 */
+  --ink: var(--green);
+  --ink-2: rgba(38, 69, 54, 0.72);
+  --ink-3: rgba(38, 69, 54, 0.5);
+  --line: rgba(38, 69, 54, 0.12);
+
+  /* Typography */
+  --font-ko: 'Gothic A1', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  --font-en: 'Jost', 'Gothic A1', sans-serif;
+  --font-title: 'Bagel Fat One', 'Jost', sans-serif; /* 메인 타이틀 전용 */
+
+  /* Shape — 카드 32~40px, 테두리 없음 */
+  --r-card: 36px;
+  --r-lg: 24px;
+  --r-md: 16px;
+  --r-pill: 999px;
+
+  --shadow: 0 1px 0 rgba(38, 69, 54, 0.04);
+
+  --container: 1180px;
+  --gutter: 32px;
+  --header-h: 76px;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 18px;
+    --r-card: 28px;
+    --header-h: 64px;
+  }
+}
