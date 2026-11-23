@@ -778,3 +778,77 @@ textarea.field__input {
 .field__input {
   width: 100%;
 }
+
+/* ============ 3주차: 반응형 · 예외 처리 (Day 11) ============ */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 10px var(--gutter);
+  background: var(--terra);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-align: center;
+}
+.state__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.line-nav__short {
+  display: none;
+}
+@media (max-width: 520px) {
+  .line-nav {
+    justify-content: space-between;
+    gap: 2px;
+  }
+  .line-nav__item {
+    padding: 0 10px 0 6px;
+    gap: 5px;
+    font-size: 13px;
+  }
+  .line-nav__long {
+    display: none;
+  }
+  .line-nav__short {
+    display: inline;
+  }
+  .logo__text {
+    font-size: 17px;
+  }
+}
+/* 휴대폰에서 상단 일러스트가 화면을 다 차지하지 않게 */
+@media (max-width: 640px) {
+  .page-hero__inner {
+    gap: 12px;
+    padding-bottom: 20px;
+  }
+  .page-hero__art svg {
+    max-width: 220px;
+    max-height: 170px;
+  }
+  .page-hero--compact .page-hero__art {
+    display: none;
+  }
+  .page-hero__en {
+    font-size: 56px;
+  }
+}
+
+/* ============ 3주차: 입력 검증 (Day 12) ============ */
+.pw-rules {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.pw-rules li.is-ok {
+  color: var(--green);
+}

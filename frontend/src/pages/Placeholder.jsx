@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { EmptyState } from '../components/common/ui.jsx';
+import { usePageTitle } from '../hooks/usePage.js';
 
 export function NotFound() {
+  usePageTitle('없는 페이지');
   return (
     <div className="container">
       <EmptyState

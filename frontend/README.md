@@ -11,6 +11,10 @@ cp .env.example .env.local
 npm run dev          # http://localhost:5173
 npm run test:unit    # 유틸 + 시연 시나리오 통합 테스트 (추가 설치 없음)
 npm run build
+
+# 3주차 추가 (처음 한 번 npx playwright install chromium)
+npm run test:e2e     # dev 서버를 켠 상태에서 — 시연 시나리오 28개 항목 브라우저 점검
+npm run capture      # dev 서버를 켠 상태에서 — 발표용 화면 캡처 → docs/screenshots/
 ```
 
 목 서버 데모 계정: `demo@petplanet.kr` / `petplanet123!` (로그인 화면 아래 버튼으로 자동 입력)
@@ -29,9 +33,10 @@ src/
   api/                  client.js(공통 HTTP·JWT·에러) · index.js(도메인별 API 함수 — FE2 함수 자리 포함)
   mocks/                seed.js(역·장소·리뷰) · mockServer.js(명세대로 응답하는 목 서버)
   context/AuthContext   useAuth(): user, pets, primaryPet, login, logout, signup …
-  hooks/useAsync        데이터 불러오기 공통 훅
+  hooks/                useAsync(데이터 불러오기) · usePage(탭 제목·이탈 경고·첫 오류 칸 이동)
   components/
     layout/Site.jsx     SiteHeader(E·R·S·M) · SiteFooter · PageHero · NowStation · LetterBadge   ← 공통
+    layout/AppChrome    ScrollToTop · OfflineBanner · ErrorBoundary                               ← 공통
     common/             ui.jsx(Button·Field·OptionGroup·Tag·Stars·Modal…) · Toast              ← 공통
     illust/             목업 스타일 SVG 일러스트                                                  ← 공통
     place/ pet/ map/    FE1 (장소 카드·노선도·필터·리뷰·찜 / 반려동물 입력 / 카카오맵)
@@ -40,8 +45,9 @@ src/
     fe2/Fe2Screens.jsx                               FE2 뼈대 (S04-0·S04·S05·S06·S07)
   styles/               tokens.css(색·폰트) · base · components · pages
   utils/                geo(하버사인) · validators · format · subway · categories
-tests/                  node:test
-docs/                   FE1_SCREEN_FLOW.md · FE1_TEST_CHECKLIST.md
+tests/                  node:test 단위·통합 테스트
+e2e/                    demo-scenario.mjs(시연 시나리오 점검) · capture.mjs(발표용 캡처) — Playwright
+docs/                   FE1_SCREEN_FLOW · FE1_TEST_CHECKLIST · FE1_WEEK3_REPORT(3주차 보고) · FE1_PRESENTATION(슬라이드 구성안·시연 대본·Q&A)
 ```
 
 ## FE2 시작하기

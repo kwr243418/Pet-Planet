@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { LogoMark } from '../illust/index.jsx';
 
 export const LINES_NAV = [
-  { key: 'E', label: '역세권 탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
-  { key: 'R', label: '병원 · 호텔', name: '예약선', to: '/reservations/hospital', match: ['/reservations', '/hospitals'] },
-  { key: 'S', label: '펫 스토어', name: '쇼핑선', to: '/shop', match: ['/shop', '/cart'] },
-  { key: 'M', label: '마이페이지', name: '마이선', to: '/mypage', match: ['/mypage', '/signup', '/pets'] },
+  { key: 'E', label: '역세권 탐색', short: '탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
+  { key: 'R', label: '병원 · 호텔', short: '예약', name: '예약선', to: '/reservations/hospital', match: ['/reservations', '/hospitals'] },
+  { key: 'S', label: '펫 스토어', short: '스토어', name: '쇼핑선', to: '/shop', match: ['/shop', '/cart'] },
+  { key: 'M', label: '마이페이지', short: '마이', name: '마이선', to: '/mypage', match: ['/mypage', '/signup', '/pets'] },
 ];
 
 /** 노선 글자 원 배지 (E·R·S·M) */
@@ -38,7 +38,8 @@ export function SiteHeader({ tone = 'mint' }) {
             return (
               <NavLink key={l.key} to={l.to} className={`line-nav__item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
                 <LetterBadge letter={l.key} size="sm" />
-                <span>{l.label}</span>
+                <span className="line-nav__long">{l.label}</span>
+                <span className="line-nav__short">{l.short}</span>
               </NavLink>
             );
           })}

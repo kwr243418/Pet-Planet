@@ -7,6 +7,7 @@ import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings, TinyDog } from '../../components/illust/index.jsx';
 import { OptionGroup } from '../../components/common/ui.jsx';
 import { useNavigate } from 'react-router-dom';
+import { usePageTitle } from '../../hooks/usePage.js';
 
 /** 아직 구현되지 않은 영역 표시 (점선 카드 + 필수 요소 목록) */
 function Blueprint({ title, items, data, wide }) {
@@ -44,6 +45,7 @@ function ReserveTabs() {
 
 /** S04 동물병원 진료 예약 */
 export function HospitalReservePage() {
+  usePageTitle('동물병원 진료 예약');
   return (
     <>
       <PageHero line="R" en="CLINIC" title={'제휴 동물병원\n진료 예약'} desc={'반려동물과 원하는 시간을 고르면 병원으로 바로 신청돼요.\n병원이 승인하면 예약이 확정됩니다.'} art={<StationBuildings />} />
@@ -63,6 +65,7 @@ export function HospitalReservePage() {
 
 /** S04-0 동물병원 상세 · 리뷰 */
 export function HospitalDetailPage() {
+  usePageTitle('동물병원 상세');
   const { hospitalId } = useParams();
   return (
     <>
@@ -94,6 +97,7 @@ export function HospitalDetailPage() {
 
 /** S05 펫 호텔 객실 예약 */
 export function HotelReservePage() {
+  usePageTitle('펫 호텔 예약');
   return (
     <>
       <PageHero line="R" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
@@ -114,6 +118,7 @@ export function HotelReservePage() {
 
 /** S06 펫 스토어 */
 export function StorePage() {
+  usePageTitle('펫 스토어');
   return (
     <>
       <PageHero line="S" en={'PET\nMART'} title={'외출 준비물,\n여기서 한 번에'} desc={'사료 · 간식 · 위생용품 · 외출 용품을 장바구니에 담아 주문하고,\n배송 단계를 노선처럼 확인하세요.'} art={<StationBuildings />} />
@@ -133,6 +138,7 @@ export function StorePage() {
 
 /** S07 장바구니 · 주문서 */
 export function CartOrderPage() {
+  usePageTitle('장바구니 · 주문서');
   return (
     <>
       <PageHero line="S" en="ORDER" compact title="장바구니 · 주문서" desc="담은 상품을 확인하고 배송 정보를 입력해 가상 결제해요." art={<StationBuildings />} />

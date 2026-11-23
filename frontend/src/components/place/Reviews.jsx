@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { reviewApi } from '../../api/index.js';
 import { REVIEW_MAX, REVIEW_MIN, validateReview } from '../../utils/validators.js';
 import { formatDate } from '../../utils/format.js';
-import { Button, Field, Modal, StarInput, Stars, Tag } from '../common/ui.jsx';
+import { Button, ConfirmDialog, Field, Modal, StarInput, Stars, Tag } from '../common/ui.jsx';
 import { useToast } from '../common/Toast.jsx';
+import { focusFirstInvalid } from '../../hooks/usePage.js';
 
 /** 리뷰 카드: 닉네임 · 별점 · 날짜 · 내용, 내 리뷰에만 [수정]·[삭제] */
 export function ReviewCard({ review, onEdit, onDelete }) {
@@ -42,7 +43,11 @@ export function ReviewModal({ open, onClose, targetId, targetName, editing, onSa
   const [touched, setTouched] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const toast = useToast();
+  // 작성 중인 내용이 있으면 닫기 전에 확인 (Day 12)
+  const dirty = rating !== (editing?.rating ?? 0) || content.trim() !== (editing?.content ?? '').trim();
+  const requestClose = () => (dirty && !saving ? setConfirmClose(true) : onClose());
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +61,10 @@ export function ReviewModal({ open, onClose, targetId, targetName, editing, onSa
 
   const submit = async () => {
     setTouched(true);
-    if (Object.keys(validateReview({ rating, content })).length) return;
+    if (Object.keys(validateReview({ rating, content })).length) {
+      focusFirstInvalid(document.querySelector('.modal'));
+      return;
+    }
     setSaving(true);
     try {
       const saved = editing
@@ -74,13 +82,14 @@ export function ReviewModal({ open, onClose, targetId, targetName, editing, onSa
   };
 
   return (
+    <>
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       title={editing ? '리뷰 수정' : '리뷰 쓰기'}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={requestClose}>
             취소
           </Button>
           <Button onClick={submit} loading={saving}>
@@ -113,5 +122,17 @@ export function ReviewModal({ open, onClose, targetId, targetName, editing, onSa
         error={errors.content}
       />
     </Modal>
+    <ConfirmDialog
+      open={confirmClose}
+      title="작성 중인 리뷰가 있어요"
+      desc="지금 닫으면 입력한 내용이 사라져요."
+      confirmText="닫기"
+      onCancel={() => setConfirmClose(false)}
+      onConfirm={() => {
+        setConfirmClose(false);
+        onClose();
+      }}
+    />
+    </>
   );
 }
