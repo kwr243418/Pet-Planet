@@ -44,7 +44,9 @@ export const placeApi = {
 export const reviewApi = {
   list: (targetId, { sort = 'latest', page = 0, size = 4, targetType = 'PLACE' } = {}) =>
     http.get('/reviews', { targetType, targetId, sort, page, size }),
-  create: ({ targetId, rating, content, targetType = 'PLACE' }) => http.post('/reviews', { targetType, targetId, rating, content }),
+  create: ({ targetId, rating, content, targetType = 'PLACE', petId }) => http.post('/reviews', { targetType, targetId, rating, content, petId }),
+  // 작성 자격: 병원은 이용완료 예약, 상품은 배송완료 주문이 있어야 해요 → { allowed, alreadyReviewed, reason }
+  eligibility: (targetType, targetId) => http.get('/reviews/eligibility', { targetType, targetId }),
   update: (reviewId, { rating, content }) => http.put(`/reviews/${reviewId}`, { rating, content }),
   remove: (reviewId) => http.delete(`/reviews/${reviewId}`),
   /** targetType 생략 시 장소·상품 리뷰 모두 */
@@ -63,6 +65,8 @@ export const hospitalApi = {
   reserve: ({ hospitalId, petId, reservationDate }) => http.post('/hospital-reservations', { hospitalId, petId, reservationDate }),
   myReservations: () => http.get('/users/me/hospital-reservations'),
   cancel: (reservationId) => http.patch(`/hospital-reservations/${reservationId}/cancel`),
+  // 사업자·관리자 (시연 모드에서는 예약한 본인도): PENDING→CONFIRMED→COMPLETED
+  changeStatus: (reservationId, status) => http.patch(`/hospital-reservations/${reservationId}/status`, { status }),
 };
 
 export const hotelApi = {
@@ -73,6 +77,7 @@ export const hotelApi = {
   reserve: ({ roomId, petId, checkInDate, checkOutDate }) => http.post('/hotel-reservations', { roomId, petId, checkInDate, checkOutDate }),
   myReservations: () => http.get('/users/me/hotel-reservations'),
   cancel: (reservationId) => http.patch(`/hotel-reservations/${reservationId}/cancel`),
+  changeStatus: (reservationId, status) => http.patch(`/hotel-reservations/${reservationId}/status`, { status }),
 };
 
 export const shopApi = {
@@ -94,4 +99,6 @@ export const orderApi = {
   mine: () => http.get('/users/me/orders'),
   get: (orderId) => http.get(`/orders/${orderId}`),
   cancel: (orderId) => http.patch(`/orders/${orderId}/cancel`),
+  // 관리자 (시연 모드에서는 주문한 본인도): ORDERED→PREPARING→SHIPPING→DELIVERED 한 단계씩
+  changeStatus: (orderId, status) => http.patch(`/orders/${orderId}/status`, { status }),
 };

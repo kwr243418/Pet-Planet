@@ -20,44 +20,64 @@
 │   ├── 02_DESIGN_GUIDE.md               디자인 가이드: 색 · 폰트 · 공통 컴포넌트 (팀장 목업 규칙)
 │   ├── 03_API_CONVENTIONS.md            API 공통 규격: 응답 · 에러 · 인증 · 페이지 · enum 값
 │   ├── 04_API_USER_PLACE.md             API 명세 FE1 ↔ BE1 (회원·반려동물·역·장소·찜·리뷰)
-│   ├── 05_API_RESERVATION_COMMERCE.md   API 명세 FE2 ↔ BE2 (병원·호텔·상품·장바구니·주문) — 초안
-│   ├── 06_DB_DECISIONS.md               DB 합의사항: 설계와 화면이 안 맞는 곳 13개 — 결정 칸 채우기
-│   └── 07_DEMO_SCENARIO_TEST.md         시연 시나리오 5단계 + 화면별 체크리스트
-├── db/                       ← MySQL 스크립트 (실행 순서는 db/README.md)
-├── frontend/                 ← React 앱 (공통 레이아웃·디자인·API 클라이언트 + 화면)
-├── backend/                  ← 백엔드 (스택 확정 후 여기에)
+│   ├── 05_API_RESERVATION_COMMERCE.md   API 명세 FE2 ↔ BE2 (병원·호텔·상품·장바구니·주문)
+│   ├── 06_DB_DECISIONS.md               DB 합의사항 (설계와 화면이 안 맞는 곳 + 결정)
+│   ├── 07_DEMO_SCENARIO_TEST.md         시연 시나리오 5단계 + 화면별 체크리스트
+│   └── 08_SQL_QUERIES.md                핵심 SQL 모음 (다중 조건 검색·예약 충돌·주문 트랜잭션 등) — 발표용
+├── db/                       ← MySQL 스크립트 + 공공데이터 로더(db/loader)
+├── frontend/                 ← React + Vite 앱 (전 화면, 목 서버 포함)
+├── backend/                  ← Spring Boot 3 · Java 17 · JdbcTemplate API 서버 (backend/README.md)
 ├── CONTRIBUTING.md           ← 브랜치 · 커밋 · PR 규칙
 └── .github/                  ← PR · 이슈 템플릿
 ```
 
 ## 빠르게 실행해 보기
 
-**프론트엔드** (백엔드 없이 목 서버로 모든 FE1 화면이 동작)
+### A. 프론트만 (백엔드·DB 없이 — 브라우저 안 목 서버)
+
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
-npm run dev          # http://localhost:5173  (데모 계정 demo@petplanet.kr / petplanet123!)
-npm run test:unit
+cp .env.example .env.local      # VITE_USE_MOCK=true
+npm run dev                     # http://localhost:5173  데모 계정 demo@petplanet.kr / petplanet123!
+npm run test:unit               # node:test 23개
 ```
 
-**DB** (MySQL 8)
+### B. 실제 DB + 백엔드 + 프론트
+
 ```bash
-mysql -u root -p < db/schema_full.sql
-mysql -u root -p < db/patch_v2_proposed.sql     # 합의 후
-mysql -u root -p < db/seed_dev_places.sql       # 개발용 역·장소 데이터
+# 1) DB (MySQL 8) — 레포 루트에서, 이 순서대로
+mysql -u root -p < db/schema_full.sql            # ⚠️ 테이블을 DROP 후 다시 만들어요 (공용 DB면 팀에 먼저 공유)
+mysql -u root -p < db/patch_v2_proposed.sql
+mysql -u root -p < db/patch_be2_public_data.sql
+mysql -u root -p < db/seed_dev_places.sql        # 지하철역 + 장소
+mysql -u root -p < db/seed_demo.sql              # 시연 계정·제휴 병원/호텔·상품·예약·주문·리뷰
+# (선택) 전국 동물병원·펫호텔 공공데이터 → db/loader/README.md
+
+# 2) 백엔드 (http://localhost:8080)
+cd backend
+cp src/main/resources/application-local.yml.example src/main/resources/application-local.yml   # DB 주소·계정 입력
+./gradlew bootRun
+
+# 3) 프론트 (다른 터미널)
+cd frontend
+echo "VITE_USE_MOCK=false" > .env.local          # /api → localhost:8080 프록시
+npm run dev
 ```
 
-## 지금 상태 (11/23)
+시연 계정 (seed_demo.sql, 비밀번호 모두 `petplanet123!`) — `demo@petplanet.kr` 일반 · `partner@petplanet.kr` 사업자 · `admin@petplanet.kr` 관리자 (목 서버와 같은 데모 계정).
+원격 DB는 `mysql -h 주소 -P 포트 -u 계정 -p < …` 로 같은 순서. 자세한 설명·문제 해결: [backend/README.md](backend/README.md)
+
+## 지금 상태 (11/24)
 
 | 파트 | 상태 |
 |---|---|
-| 공통 | 디자인 시스템·헤더/푸터·NOW STATION·API 클라이언트·로그인 상태 관리 완료 (`frontend/src/components/layout`, `common`, `api`) |
-| FE1 | S01·S02·S03·S08(FE1 칸)·S09 + 로그인·비밀번호 찾기·반려동물 추가/수정 — **목 서버로 동작 완료**, 실제 API 연결 대기 |
-| FE2 | S04-0·S04·S05·S06·S07 **뼈대 화면** (공통 레이아웃 + 필수 요소 자리 표시) — `frontend/src/pages/fe2/` |
-| BE1 | DB 스키마 작성 (`db/schema_full.sql`, feature/be-user-place) — API 미착수 |
-| BE2 | 미착수 |
-| 결정 필요 | **백엔드 스택**, `docs/06_DB_DECISIONS.md` 13개 항목 |
+| 공통 | 디자인 시스템·헤더/푸터·NOW STATION·API 클라이언트·로그인 상태 관리 완료 |
+| FE1 | S01·S02·S03·S08·S09 + 로그인·비밀번호 찾기·반려동물 추가/수정 — 완료 (목 서버·실제 API 같은 코드) |
+| FE2 | S04-0·S04·S05·S06·S07 + 마이페이지 예약·주문 칸 — **API 연결 완료** (`frontend/src/pages/fe2/`) |
+| BE1 | 회원·반려동물·역·장소(다중 조건 검색)·찜·리뷰 API 구현 (`backend/`) |
+| BE2 | 병원·호텔 예약(시간 충돌·체중 검증·기간 겹침), 상품·장바구니·주문(트랜잭션·재고) API, 시연 시드, 공공데이터 로더 |
+| 확인 필요 | 실제 MySQL + `./gradlew bootRun` 으로 끝까지 돌려 보기 (작성 환경에서 MySQL 접속이 안 돼서 SQL·빌드는 정적 검증만 함) → [07 체크리스트](docs/07_DEMO_SCENARIO_TEST.md) |
 
 ## 팀 규칙 한 줄 요약
 
@@ -68,4 +88,5 @@ mysql -u root -p < db/seed_dev_places.sql       # 개발용 역·장소 데이�
 
 ## 데이터 출처
 
-공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보 · 지도: 카카오맵 API
+공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보, 지방행정 인허가 데이터(동물병원·동물위탁관리업), 한국문화정보원 반려동물 동반 가능 시설(영업시간·휴무일) · 지도: 카카오맵 API
+시연용 제휴 병원·호텔·상품·회원·리뷰는 **가상 데이터**예요 (`db/seed_demo.sql`, 주소에 “시연용” 표시).
