@@ -12,13 +12,14 @@
 | 4 | place_categories | 샘플: 카페·공원·반려동물 용품점 | S02 필터는 **카페·식당·숙소·운동장** | 4종으로 맞추고 공공데이터 분류 → 4종 매핑표 만들기 | BE1 | |
 | 5 | places · pets · products | 사진 칼럼 없음 | S03 대표 사진, S09 반려동물 사진, S06 상품 이미지 | `image_url VARCHAR(500)`, `pets.photo_url MEDIUMTEXT`(작은 썸네일 data URL — 업로드 API 만들면 VARCHAR) | BE1·BE2 | |
 | 6 | pets | breed·weight·gender 가 NULL 허용 | S09 필수: 이름·품종·체중·성별·중성화. 체중 없으면 호텔 검증 불가 | NOT NULL 로 | BE1 | |
-| 7 | reviews | target_type `PLACE/PRODUCT`, 중복 제약 없음, pet_id·수정일 없음 | S04-0 병원 리뷰 저장 불가 / 1인 1리뷰 / 리뷰 카드 품종·체중 | `HOSPITAL` 추가, `pet_id`, `updated_at`, `UNIQUE(user_id, target_type, target_id)`. 병원을 여러 번 방문해 매번 쓰게 할지 결정 (그럼 UNIQUE 대신 `reservation_id`) | BE2 | |
-| 8 | orders | status `PENDING/PAID/CANCELLED/SHIPPED`, 배송 정보 없음 | S07 배송 노선 결제완료→배송준비→배송중→배송완료, 받는 분·연락처·주소, 배송비 | status `ORDERED/PREPARING/SHIPPING/DELIVERED/CANCELLED`, `receiver_name`, `receiver_phone`, `address`, `shipping_fee` | BE2 | |
-| 9 | cart_items | 같은 상품 여러 행 가능 | S06 "같은 상품은 수량이 합쳐져요" | `UNIQUE(user_id, product_id)` + `ON DUPLICATE KEY UPDATE` | BE2 | |
-| 10 | product_categories | 샘플: 사료·장난감·의류 | S06 탭: 전체·사료·간식·위생용품·용품 | 4종으로 맞추기 (장난감·의류 → 용품?) | BE2 | |
-| 11 | hospitals | 영업시간만 | S04-0 소개 탭: 병원 소개·진료 과목·점심시간 | `intro`, `departments`, `lunch_time` 추가 **또는** 화면에서 빼기 | BE2·FE2 | |
-| 12 | hospital_reservations | 시간 정원 규칙 없음 | S04 "예약 찬 시간은 줄 긋고 비활성" | 30분 단위, 시간당 1건(`PENDING`·`CONFIRMED`)이면 마감 + 인덱스 | BE2 | |
-| 13 | hotel_reservations | 기간 중복 규칙 없음 | S05 "같은 날짜에 확정 예약 있음" | 겹치는 기간 검사. `CONFIRMED` 만 막을지 `PENDING` 도 막을지 결정 + 인덱스 | BE2 | |
+| 7 | reviews | target_type `PLACE/PRODUCT`, 중복 제약 없음, pet_id·수정일 없음 | S04-0 병원 리뷰 저장 불가 / 1인 1리뷰 / 리뷰 카드 품종·체중 | `HOSPITAL` 추가, `pet_id`, `updated_at`, `UNIQUE(user_id, target_type, target_id)`. 병원을 여러 번 방문해 매번 쓰게 할지 결정 (그럼 UNIQUE 대신 `reservation_id`) | BE2 | ✅ 채택 (11/24 BE2): `HOSPITAL`·`pet_id`·`updated_at` 추가 + `UNIQUE(user_id, target_type, target_id)` 1인 1리뷰. 방문마다 리뷰는 안 함 |
+| 8 | orders | status `PENDING/PAID/CANCELLED/SHIPPED`, 배송 정보 없음 | S07 배송 노선 결제완료→배송준비→배송중→배송완료, 받는 분·연락처·주소, 배송비 | status `ORDERED/PREPARING/SHIPPING/DELIVERED/CANCELLED`, `receiver_name`, `receiver_phone`, `address`, `shipping_fee` | BE2 | ✅ 채택 (11/24 BE2): patch [8] 그대로 |
+| 9 | cart_items | 같은 상품 여러 행 가능 | S06 "같은 상품은 수량이 합쳐져요" | `UNIQUE(user_id, product_id)` + `ON DUPLICATE KEY UPDATE` | BE2 | ✅ 채택 (11/24 BE2): 담기 API는 `ON DUPLICATE KEY UPDATE`로 수량 합침 |
+| 10 | product_categories | 샘플: 사료·장난감·의류 | S06 탭: 전체·사료·간식·위생용품·용품 | 4종으로 맞추기 (장난감·의류 → 용품?) | BE2 | ✅ 채택 (11/24 BE2): 사료·간식·위생용품·용품 4종. 장난감·의류 상품은 용품으로 옮기고 두 카테고리 삭제 (BE2 시드에서 처리) |
+| 11 | hospitals | 영업시간만 | S04-0 소개 탭: 병원 소개·진료 과목·점심시간 | `intro`, `departments`, `lunch_time` 추가 **또는** 화면에서 빼기 | BE2·FE2 | ✅ 칼럼 추가 (11/24 BE2): patch [11] 그대로, 소개 탭 유지 — FE2 확인 필요 |
+| 12 | hospital_reservations | 시간 정원 규칙 없음 | S04 "예약 찬 시간은 줄 긋고 비활성" | 30분 단위, 시간당 1건(`PENDING`·`CONFIRMED`)이면 마감 + 인덱스 | BE2 | ✅ 채택 (11/24 BE2): 30분 단위, 같은 병원·같은 일시에 `PENDING`·`CONFIRMED` 1건이면 마감 → `409 TIME_SLOT_TAKEN` |
+| 13 | hotel_reservations | 기간 중복 규칙 없음 | S05 "같은 날짜에 확정 예약 있음" | 겹치는 기간 검사. `CONFIRMED` 만 막을지 `PENDING` 도 막을지 결정 + 인덱스 | BE2 | ✅ 채택 (11/24 BE2): `PENDING`·`CONFIRMED` **둘 다** 막음 (대기 예약 두 건이 모두 확정되는 이중 예약 방지) → `409 ROOM_ALREADY_BOOKED` |
+| 14 | hospitals · pet_hotels | 직접 넣은 샘플 2곳씩뿐 | 전국 실제 병원·호텔로 S04·S05 목록과 역 근처 검색 | `license_no VARCHAR(20) UNIQUE`(인허가 관리번호) 추가 — `db/patch_be2_public_data.sql`, 적재기 `db/loader/` | BE2 | ✅ 채택 (11/24 BE2): 영업 중 병원 5,268·호텔(위탁관리업) 5,776곳. 영업시간·휴무일은 `operating_hours` 한 칸에 "… / 휴무: …" (병원만, 2,626곳). 호텔 영업시간·리뷰 시드 없음. PK 는 `hospital_id`·`hotel_id` 유지 (관리번호 18자리는 JS 숫자 범위 초과). 공용 DB 연결 안 돼 적재 대기 |
 
 ## 그 밖에 같이 정할 것
 

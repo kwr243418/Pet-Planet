@@ -75,13 +75,13 @@ WHERE hospital_id = ? AND DATE(reservation_date) = ? AND status IN ('PENDING', '
 
 **규칙 (서버에서 다시 검사)**
 - `pets.weight > room_types.max_weight` → `409 ROOM_OVERWEIGHT`
-- 같은 객실에 기간이 겹치는 예약 → `409 ROOM_ALREADY_BOOKED` (어떤 상태를 막을지 합의 [13], 목업 문구는 "확정 예약 있음")
+- 같은 객실에 기간이 겹치는 예약 → `409 ROOM_ALREADY_BOOKED` (`PENDING`·`CONFIRMED` 둘 다 막음 — 합의 [13])
 - 체크아웃 > 체크인, 지난 날짜 불가
 
 ```sql
 -- 기간 겹침 검사: 기존 체크인 < 새 체크아웃 AND 기존 체크아웃 > 새 체크인
 SELECT COUNT(*) FROM hotel_reservations
-WHERE room_id = ? AND status IN ('CONFIRMED')          -- 합의에 따라 'PENDING' 포함
+WHERE room_id = ? AND status IN ('PENDING', 'CONFIRMED')   -- 합의 [13]
   AND check_in_date < ? AND check_out_date > ?;
 ```
 
