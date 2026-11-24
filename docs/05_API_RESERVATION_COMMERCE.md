@@ -1,6 +1,7 @@
-# 05. API 명세 — 예약 · 커머스 (FE2 ↔ BE2) · 초안
+# 05. API 명세 — 예약 · 커머스 (FE2 ↔ BE2) · 구현 완료 (11/24)
 
-> ⚠️ **초안**이에요. 팀장 목업 필수 요소(S04-0·S04·S05·S06·S07·S08)와 현재 DB(`db/schema_full.sql`)를 기준으로 FE1이 뼈대를 잡았어요.
+> ✅ 11/24 백엔드(`backend/`)에 구현했어요. 구현하면서 더한 것은 맨 아래 §8 에 있어요.
+> (처음 초안 설명) **초안**이에요. 팀장 목업 필수 요소(S04-0·S04·S05·S06·S07·S08)와 현재 DB(`db/schema_full.sql`)를 기준으로 FE1이 뼈대를 잡았어요.
 > FE2·BE2가 확정하면서 자유롭게 고쳐 주세요. 공통 규칙은 [03_API_CONVENTIONS](03_API_CONVENTIONS.md).
 > FE 쪽 함수 자리는 이미 있어요: `frontend/src/api/index.js` → `hospitalApi`, `hotelApi`, `shopApi`, `cartApi`, `orderApi`
 > 🆕 = DB 변경 필요 → [06_DB_DECISIONS](06_DB_DECISIONS.md)
@@ -171,3 +172,23 @@ ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);
 | 예약 현황 | `GET /users/me/hospital-reservations` + `GET /users/me/hotel-reservations` → 상태 칩, [취소] / [입실 안내] |
 | 주문 내역 | `GET /users/me/orders` → 배송 단계 노선, [주문 상세] / [주문 취소] |
 | 탈퇴 가능 여부 | `DELETE /users/me` 가 진행 중 예약(`PENDING`·`CONFIRMED`)·배송 전 주문(`ORDERED`·`PREPARING`)이 있으면 `409 WITHDRAW_BLOCKED` |
+
+## 8. 구현에서 더한 것 (11/24)
+
+| API | 더한 것 |
+|---|---|
+| `GET /hospitals` | `partner=true` (사업자 계정이 연결된 **제휴 병원만** — 예약 화면용), `radiusKm`. 응답에 `partner`, `distanceKm`, `departments` 는 배열 |
+| `GET /pet-hotels` | `bookable=true` (객실이 등록된 호텔만), 응답에 `partner`, `roomCount`, `minPrice`. 상세(`/pet-hotels/{id}`)에는 `rooms` 목록 |
+| `GET /pet-hotels/{id}/rooms` | 비로그인·`petId` 없이도 볼 수 있어요 (그때는 BOOKED/AVAILABLE 만). `petId` 를 주면 로그인 필요 + 내 반려동물만 |
+| `PATCH /hotel-reservations/{id}/status` | 추가 (병원과 같은 규칙) |
+| 예약 상태 변경 권한 | `ADMIN`, 그 병원·호텔의 `BUSINESS`, `petplanet.demo-mode: true` 면 **예약한 본인도** (시연 버튼). 흐름 밖 변경은 `409 INVALID_STATUS_CHANGE` |
+| 예약 취소 | 승인대기·예약확정이 아니면 `409 RESERVATION_NOT_CANCELLABLE` |
+| 내 예약 응답 | `kind`(HOSPITAL/HOTEL), 병원은 `reviewed`(이미 리뷰 씀), 호텔은 `hotelName`·`roomName`·`nights`·`totalPrice` |
+| 진료 시간 칸 | 10:00~17:30 30분 단위, 병원 `lunch_time`(없으면 13:00-14:00) 제외, 지난 시간은 `available: false` |
+| `GET /products` | `sort`: `latest`(기본) · `price_asc` · `price_desc` · `rating`, 기본 size 20. 상세에 `description` |
+| 장바구니 | `POST /cart/items`·`PATCH` 응답은 **갱신된 장바구니 전체**, `DELETE` 는 204. 담을 때 재고를 넘으면 `409 OUT_OF_STOCK` |
+| `POST /orders` | 장바구니가 비면 `400 CART_EMPTY`. 응답·목록에 `items[]`(`reviewed` 포함), 받는 분 정보 |
+| `PATCH /orders/{id}/status` | 한 단계씩만 (ORDERED → PREPARING → SHIPPING → DELIVERED). `ADMIN` 또는 시연 모드의 주문한 본인 |
+| 배송비 | 장바구니에 상품이 있으면 3,000원 |
+
+트랜잭션·잠금 설명과 SQL 전문: [08_SQL_QUERIES](08_SQL_QUERIES.md)
