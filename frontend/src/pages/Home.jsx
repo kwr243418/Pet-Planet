@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { usePageTitle } from '../hooks/usePage.js';
 import { Link } from 'react-router-dom';
 import { placeApi, stationApi } from '../api/index.js';
 import { useAsync } from '../hooks/useAsync.js';
@@ -27,6 +28,7 @@ const SAMPLE_PET = { name: '보리', breed: '진돗개', gender: 'MALE', weight:
 
 /** S01 메인 홈 */
 export default function Home() {
+  usePageTitle(null);
   const { user, primaryPet } = useAuth();
   const last = readLastStation();
   // "이번 역": 마지막으로 본 역, 없으면 홍대입구(2호선)

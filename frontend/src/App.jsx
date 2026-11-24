@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider, useToast } from './components/common/Toast.jsx';
 import { PageLoader } from './components/common/ui.jsx';
 import { SiteFooter, SiteHeader } from './components/layout/Site.jsx';
+import { ErrorBoundary, OfflineBanner, ScrollToTop } from './components/layout/AppChrome.jsx';
 import Home from './pages/Home.jsx';
 import Explore from './pages/Explore.jsx';
 import PlaceDetail from './pages/PlaceDetail.jsx';
@@ -35,8 +36,11 @@ function Shell() {
   const { pathname } = useLocation();
   return (
     <>
+      <ScrollToTop />
+      <OfflineBanner />
       <SiteHeader tone={pathname === '/' ? 'cream' : 'mint'} />
       <main>
+        <ErrorBoundary resetKey={pathname}>
         <Routes>
           <Route path="/" element={<Home />} />
           {/* E 탐색선 (FE1) */}
@@ -59,6 +63,7 @@ function Shell() {
           <Route path="/cart" element={<RequireAuth><CartOrderPage /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ErrorBoundary>
       </main>
       <SiteFooter />
     </>

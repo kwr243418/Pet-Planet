@@ -1,0 +1,60 @@
+# PublicDataLoader — 동물병원 · 펫호텔 공공데이터 적재 (BE2)
+
+행정안전부 인허가 CSV에서 **영업 중인 업체 전국 전체**를 골라 `hospitals`, `pet_hotels`에 저장해요.
+병원은 한국문화정보원 데이터에 같은 업체가 있으면 **영업시간 · 휴무일**을 `operating_hours` 한 칸에
+`월~금 10:00~20:00 / 휴무: 매주 일요일` 처럼 합쳐 저장해요. 호텔은 영업시간을 저장하지 않아요.
+
+| 단계 | 내용 |
+|---|---|
+| 필터 | `영업상태명 = 영업/정상` 만. 좌표가 없는 행은 위도·경도가 NOT NULL 이라 건너뜀 |
+| 좌표 | EPSG:5174(보정계수 없는 Bessel 중부원점 TM) → WGS84 위도·경도 (카카오맵 좌표) |
+| 영업시간 매칭 (병원만) | ① 이름이 같고 150m 이내 ② 도로명주소가 같고 이름이 서로 포함되며 300m 이내 → 가장 가까운 곳 |
+| 저장 | `license_no`(인허가 관리번호) 기준 UPSERT — 여러 번 실행해도 중복 없음, 테이블마다 한 트랜잭션 |
+
+## 준비물
+
+1. **Java 11 이상** — `java -version` 으로 확인
+2. **MySQL JDBC 드라이버** — 이 폴더에 받기
+   ```bash
+   curl -O https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+   ```
+3. **데이터 CSV 3개** — 이 폴더에 두기 (`.gitignore` 로 커밋 안 됨)
+
+   | 파일 | 출처 |
+   |---|---|
+   | 동물병원 인허가 | https://www.data.go.kr/data/15155679/standard.do |
+   | 동물위탁관리업 인허가 | https://www.data.go.kr/data/15107029/fileData.do |
+   | 한국문화정보원 반려동물 동반 가능 문화시설 (병원 영업시간용) | https://www.data.go.kr/data/15111389/fileData.do |
+
+## 실행
+
+```bash
+cd db/loader
+
+# 1) 먼저 DB 없이 결과만 확인
+java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
+     --hospital 동물병원.csv --hotel 동물위탁관리업.csv --kcisa 한국문화정보원.csv --dry-run
+
+# 2) DB 에 저장 — 주소 · 포트 · DB 이름 · 아이디 · 비밀번호를 물어봐요
+java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
+     --hospital 동물병원.csv --hotel 동물위탁관리업.csv --kcisa 한국문화정보원.csv
+```
+
+- 파일 이름은 실제 받은 이름으로 바꿔 주세요. 한글·공백이 있으면 `"…"` 로 감싸기.
+  `InvalidPathException: Malformed input` 이 나오면 파일 이름을 영어로 바꿔 주세요 (예: `hospital.csv`).
+- 접속 정보를 미리 줄 수도 있어요: `--host 1.2.3.4 --port 3306 --db petplanet --user be2` (비밀번호는 항상 입력)
+- DB 에 바로 넣기 어려우면 `--sql-out public_data.sql` 로 SQL 파일을 만들고, `db/patch_be2_public_data.sql` 실행 후 그 파일을 실행하면 돼요.
+- 실행하면 `hospitals.license_no`, `pet_hotels.license_no` 칼럼(UNIQUE)이 없을 때 자동으로 추가돼요 (`db/patch_be2_public_data.sql` 과 같은 내용).
+  `hospital_id` · `hotel_id` 는 그대로 AUTO_INCREMENT 예요. 관리번호(18자리)는 자바스크립트 숫자 범위를 넘어서 PK·API ID 로 쓰지 않아요.
+
+## 결과 (2026-11-24 받은 파일 기준, dry-run)
+
+| | 전체 행 | 저장 | 영업 아님 | 좌표 없음 | 한국문화정보원 매칭 | 영업시간 있음 |
+|---|---|---|---|---|---|---|
+| 병원 | 10,676 | **5,268** | 5,174 | 234 | 3,387 | **2,626** |
+| 호텔(위탁관리업) | 10,169 | **5,776** | 4,100 | 293 | – | – (저장 안 함) |
+
+- 좌표 검증: 같은 이름의 병원 3,901곳을 한국문화정보원 WGS84 좌표와 비교 → 거리 중앙값 4.6m
+- 위탁관리업 주소는 원본에서 상세 주소가 `*` 로 가려져 있어요 (개인정보 비식별 조치)
+- 위탁관리업에는 호텔링을 하는 **동물병원·미용실·애견카페도 포함**돼요 (법적으로 같은 업종)
+- 진료과목 · 소개 · 점심시간 · 객실 정보는 공공데이터에 없어서 비워 둬요 → 시연 업체만 직접 입력

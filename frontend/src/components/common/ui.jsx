@@ -47,11 +47,23 @@ export function Field({ label, error, hint, right, className, id, textarea, coun
   );
 }
 
-export function PasswordField(props) {
+export function PasswordField({ hint, onKeyUp, onBlur, ...props }) {
   const [show, setShow] = useState(false);
+  const [caps, setCaps] = useState(false); // Caps Lock 경고 (Day 12)
+  const checkCaps = (e) => setCaps(!!e.getModifierState?.('CapsLock'));
   return (
     <Field
       {...props}
+      hint={caps ? 'Caps Lock이 켜져 있어요' : hint}
+      onKeyUp={(e) => {
+        checkCaps(e);
+        onKeyUp?.(e);
+      }}
+      onKeyDown={checkCaps}
+      onBlur={(e) => {
+        setCaps(false);
+        onBlur?.(e);
+      }}
       type={show ? 'text' : 'password'}
       right={
         <button type="button" className="field__toggle" onClick={() => setShow((s) => !s)} aria-label={show ? '비밀번호 숨기기' : '비밀번호 보기'}>
@@ -89,6 +101,26 @@ export function OptionGroup({ options, value, onChange, multiple, label, size = 
         </button>
       ))}
     </div>
+  );
+}
+
+/** 비밀번호 조건을 입력하는 동안 하나씩 체크 (Day 12) */
+export function PasswordRules({ value = '' }) {
+  const rules = [
+    ['8~20자', value.length >= 8 && value.length <= 20],
+    ['영문', /[A-Za-z]/.test(value)],
+    ['숫자', /\d/.test(value)],
+    ['특수문자', /[^A-Za-z0-9\s]/.test(value)],
+  ];
+  return (
+    <ul className="pw-rules" aria-label="비밀번호 조건">
+      {rules.map(([label, ok]) => (
+        <li key={label} className={ok ? 'is-ok' : ''}>
+          <span aria-hidden>{ok ? '✓' : '·'}</span> {label}
+          <span className="sr-only">{ok ? ' 충족' : ' 미충족'}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { placeApi, reviewApi } from '../api/index.js';
 import { useAsync } from '../hooks/useAsync.js';
+import { usePageTitle } from '../hooks/usePage.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LetterBadge, NowStation } from '../components/layout/Site.jsx';
 import { StationBuildings } from '../components/illust/index.jsx';
-import { Button, ConfirmDialog, EmptyState, ErrorState, LineChip, PageLoader, Stars, Tag } from '../components/common/ui.jsx';
+import { Button, ConfirmDialog, EmptyState, ErrorState, LineChip, Skeleton, Stars, Tag } from '../components/common/ui.jsx';
 import { useToast } from '../components/common/Toast.jsx';
 import { HeartIcon, useBookmarkToggle } from '../components/place/BookmarkButton.jsx';
 import { ReviewCard, ReviewModal } from '../components/place/Reviews.jsx';
@@ -19,7 +20,8 @@ import { EXPLORE_STEPS } from './Explore.jsx';
 export default function PlaceDetail() {
   const { placeId } = useParams();
   const { data: place, error, loading, reload, setData } = useAsync(() => placeApi.get(placeId), [placeId]);
-  if (loading && !place) return <PageLoader />;
+  usePageTitle(place?.name ?? (error ? '장소를 찾을 수 없어요' : '장소 상세'));
+  if (loading && !place) return <DetailSkeleton />;
   if (error)
     return (
       <div className="container">
@@ -36,6 +38,36 @@ export default function PlaceDetail() {
   return <Detail key={place.placeId} place={place} setPlace={setData} />;
 }
 
+/** 상세 화면 모양 그대로의 로딩 자리 (Day 11) */
+function DetailSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="장소 정보를 불러오는 중">
+      <section className="detail-hero">
+        <div className="container detail-hero__inner">
+          <div className="detail-hero__text">
+            <Skeleton h={14} w={180} r={8} />
+            <Skeleton h={26} w={260} r={13} style={{ marginTop: 18 }} />
+            <Skeleton h={52} w="80%" r={14} style={{ marginTop: 18 }} />
+            <Skeleton h={18} w={220} r={9} style={{ marginTop: 16 }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 32 }}>
+              <Skeleton h={48} w={200} r={24} />
+              <Skeleton h={48} w={180} r={24} />
+            </div>
+          </div>
+          <Skeleton h={300} r={36} />
+        </div>
+      </section>
+      <div className="container">
+        <div className="station-cards" style={{ marginTop: 72 }}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} h={170} r={36} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function kakaoRouteUrl(p) {
   return `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`;
 }
@@ -43,6 +75,7 @@ function kakaoRouteUrl(p) {
 function Detail({ place, setPlace }) {
   const meta = categoryMeta(place.categoryId);
   const [params] = useSearchParams();
+  const [photoBroken, setPhotoBroken] = useState(false);
   // 경로: 탐색 화면에서 들어오면 그 호선·역, 아니면 가장 가까운 역
   const near = place.nearbyStations;
   const fromStation = near.find((s) => String(s.stationId) === params.get('stationId')) ?? near.find((s) => s.lines.includes(params.get('line'))) ?? near[0];
@@ -98,8 +131,8 @@ function Detail({ place, setPlace }) {
             </div>
           </div>
           <div className={`photo-card cat-banner--${meta.tone}`}>
-            {place.imageUrl ? (
-              <img src={place.imageUrl} alt={`${place.name} 대표 사진`} />
+            {place.imageUrl && !photoBroken ? (
+              <img src={place.imageUrl} alt={`${place.name} 대표 사진`} onError={() => setPhotoBroken(true)} />
             ) : (
               <>
                 <span className="photo-card__word en">{meta.en}</span>

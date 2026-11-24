@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { categoryMeta } from '../../utils/categories.js';
 import { formatKm, INDOOR_SHORT, MAX_SIZE_SHORT } from '../../utils/format.js';
@@ -7,10 +8,12 @@ import BookmarkButton from './BookmarkButton.jsx';
 /** 카드 상단: 영문 카테고리(CAFE·DINING·STAY·PARK)를 크게 */
 export function CategoryBanner({ categoryId, imageUrl, dog, height = 120, children }) {
   const meta = categoryMeta(categoryId);
+  const [broken, setBroken] = useState(false); // 사진 주소가 깨지면 카테고리 단어로 대체 (Day 11)
+  const showImg = imageUrl && !broken;
   return (
     <div className={`cat-banner cat-banner--${meta.tone}`} style={{ height }}>
-      {imageUrl ? <img src={imageUrl} alt="" className="cat-banner__img" /> : <span className="cat-banner__word en">{meta.en}</span>}
-      {dog && !imageUrl && <TinyDog size={Math.round(height * 0.62)} className="cat-banner__dog" />}
+      {showImg ? <img src={imageUrl} alt="" className="cat-banner__img" loading="lazy" onError={() => setBroken(true)} /> : <span className="cat-banner__word en">{meta.en}</span>}
+      {dog && !showImg && <TinyDog size={Math.round(height * 0.62)} className="cat-banner__dog" />}
       {children}
     </div>
   );

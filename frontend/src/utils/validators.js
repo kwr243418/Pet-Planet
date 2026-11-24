@@ -44,8 +44,9 @@ export function validateBreed(v) {
   return '';
 }
 
-export function validateWeight(v) {
-  if (v === '' || v === null || v === undefined) return '몸무게를 입력해 주세요.';
+export function validateWeight(raw) {
+  if (raw === '' || raw === null || raw === undefined) return '몸무게를 입력해 주세요.';
+  const v = String(raw).replace(/\.$/, ''); // "18." 처럼 점으로 끝나도 18로 봐요
   const n = Number(v);
   if (Number.isNaN(n)) return '숫자로 입력해 주세요.';
   if (n <= 0 || n > 100) return '0.1kg ~ 100kg 사이로 입력해 주세요.';

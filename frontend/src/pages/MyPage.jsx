@@ -4,6 +4,7 @@ import { placeApi, reviewApi, userApi } from '../api/index.js';
 import { USE_MOCK, resetMockDb } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
+import { usePageTitle } from '../hooks/usePage.js';
 import { LetterBadge, NowStation, PageHero } from '../components/layout/Site.jsx';
 import { StationBuildings, TinyDog } from '../components/illust/index.jsx';
 import { Button, ConfirmDialog, EmptyState, ErrorState, Field, Modal, OptionGroup, Skeleton, Stars, Tag } from '../components/common/ui.jsx';
@@ -21,6 +22,7 @@ const MY_STEPS = ['회원가입', '반려동물 등록', '마이페이지', '통
 
 /** S08 마이페이지 — 환승센터 */
 export default function MyPage() {
+  usePageTitle('마이페이지');
   const { user, pets } = useAuth();
   const summary = useAsync(() => userApi.summary(), []);
   const [editOpen, setEditOpen] = useState(false);

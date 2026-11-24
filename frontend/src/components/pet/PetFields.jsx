@@ -82,14 +82,16 @@ export default function PetFields({ value, onChange, errors = {}, idPrefix = 'pe
         <Field
           id={`${idPrefix}-weight`}
           label="체중 (kg)"
-          type="number"
+          type="text"
           inputMode="decimal"
-          step="0.1"
-          min="0.1"
           placeholder="예: 18"
           className="field--weight"
           value={value.weight}
-          onChange={(e) => set('weight')(e.target.value)}
+          onChange={(e) => {
+            // 숫자와 소수점 한 자리까지만, 100kg 이하 (Day 12)
+            const v = e.target.value.replace(/[^\d.]/g, '').replace(/^(\d*\.?\d?).*$/, '$1').replace(/^0+(\d)/, '$1');
+            if (v === '' || Number(v) <= 100) set('weight')(v);
+          }}
           error={errors.weight}
         />
       </div>

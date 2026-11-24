@@ -141,7 +141,7 @@ hr.dashed {
 .home-hero__title {
   font-family: var(--font-title);
   font-weight: 400;
-  font-size: clamp(64px, 13.6vw, 168px);
+  font-size: clamp(36px, 13.2vw, 168px); /* 휴대폰에서 잘리지 않게 (Day 13 결함 수정) */
   line-height: 0.95;
   text-align: center;
   letter-spacing: 1px;
@@ -1606,4 +1606,10 @@ body {
   .blueprint-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 상단 일러스트가 강아지 한 마리일 때는 실제 크기로 (Day 13 결함 수정) */
+.page-hero__art svg.hero-dog {
+  width: 200px;
+  max-width: 200px;
 }

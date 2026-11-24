@@ -4,12 +4,14 @@ import { authApi } from '../../api/index.js';
 import { USE_MOCK } from '../../api/client.js';
 import { Button, Field } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
+import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
 import { maskEmail } from '../../utils/format.js';
 import { validateEmail, validateName } from '../../utils/validators.js';
 import { AuthFrame } from './Login.jsx';
 
 /** 비밀번호 찾기 — 이메일 + 이름 확인 후 임시 비밀번호 발송 */
 export default function FindPassword() {
+  usePageTitle('비밀번호 찾기');
   const [form, setForm] = useState({ email: '', name: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,10 @@ export default function FindPassword() {
     e.preventDefault();
     const errs = { email: validateEmail(form.email), name: validateName(form.name) };
     setErrors(errs);
-    if (errs.email || errs.name) return;
+    if (errs.email || errs.name) {
+      focusFirstInvalid(e.currentTarget);
+      return;
+    }
     setLoading(true);
     try {
       setSentTo((await authApi.resetPassword(form.email.trim(), form.name.trim())).email);
