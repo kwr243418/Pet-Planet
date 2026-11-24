@@ -1,52 +1,91 @@
 import { useState } from 'react';
-import { Button, ConfirmDialog, EmptyState, Tag } from '../../components/common/ui.jsx';
+import { Link } from 'react-router-dom';
+import { Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, Tag } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
-import { USE_MOCK } from '../../api/client.js';
+import { orderApi, reviewApi } from '../../api/index.js';
+import { useAsync } from '../../hooks/useAsync.js';
 import { formatDate } from '../../utils/format.js';
 import ReviewFormModal from './ReviewFormModal.jsx';
-import { ORDERS, advanceOrder, cancelOrder, createProductReview } from './mockData.js';
+import { DEMO_MODE } from './demo.js';
 
 const ORDER_ROUTE = ['결제완료', '배송준비', '배송중', '배송완료'];
 const STEP_OF = { ORDERED: 0, PREPARING: 1, SHIPPING: 2, DELIVERED: 3 };
+const FLOW = ['ORDERED', 'PREPARING', 'SHIPPING', 'DELIVERED'];
 const won = (n) => `${n.toLocaleString('ko-KR')}원`;
 
-/** S08 마이페이지 › 주문 내역 */
-export default function MyOrders() {
+/** S08 마이페이지 › 주문 내역 — GET /api/users/me/orders, PATCH /api/orders/{id}/cancel */
+export default function MyOrders({ onChanged }) {
   const toast = useToast();
-  const [, setVersion] = useState(0);
-  const refresh = () => setVersion((v) => v + 1);
+  const ordersQ = useAsync(() => orderApi.mine(), []); // 최근 주문이 위로 (서버 정렬)
   const [openId, setOpenId] = useState(null); // 상세를 펼친 주문
   const [target, setTarget] = useState(null); // 취소하려는 주문
+  const [cancelling, setCancelling] = useState(false);
+  const [advancing, setAdvancing] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null); // 리뷰를 쓰려는 { orderId, productId, name }
 
-  const orders = [...ORDERS].reverse(); // 최근 주문이 위로
+  const refresh = async () => {
+    await ordersQ.reload();
+    onChanged?.();
+  };
 
-  const confirmCancel = () => {
+  const confirmCancel = async () => {
+    setCancelling(true);
     try {
-      cancelOrder(target.orderId);
+      await orderApi.cancel(target.orderId); // 재고는 서버가 되돌려요
       toast.show('주문을 취소했어요');
+      await refresh();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message ?? '주문을 취소하지 못했어요.');
+    } finally {
+      setCancelling(false);
+      setTarget(null);
     }
-    setTarget(null);
-    refresh();
   };
 
-  const submitReview = ({ rating, content }) => {
-    createProductReview({ orderId: reviewTarget.orderId, productId: reviewTarget.productId, rating, content });
-    toast.success('리뷰를 등록했어요');
-    refresh();
+  // (시연) 배송 단계를 한 단계 올려요 — 백엔드 petplanet.demo-mode: true 일 때 본인도 가능
+  const advance = async (o) => {
+    setAdvancing(o.orderId);
+    try {
+      await orderApi.changeStatus(o.orderId, FLOW[STEP_OF[o.status] + 1]);
+      await refresh();
+    } catch (err) {
+      toast.error(err.message ?? '배송 단계를 바꾸지 못했어요.');
+    } finally {
+      setAdvancing(null);
+    }
   };
+
+  // 배송완료된 주문의 상품만 리뷰 작성 가능 (서버가 한 번 더 검사)
+  const submitReview = async ({ rating, content }) => {
+    await reviewApi.create({ targetType: 'PRODUCT', targetId: reviewTarget.productId, rating, content });
+    toast.success('리뷰를 등록했어요');
+    await refresh();
+  };
+
+  if (ordersQ.error) return <ErrorState error={ordersQ.error} onRetry={ordersQ.reload} />;
+  if (!ordersQ.data) return <Skeleton h={120} />;
+  const orders = ordersQ.data;
 
   if (orders.length === 0) {
-    return <EmptyState compact title="주문 내역이 없어요" desc="펫 스토어에서 외출 준비물을 담아 보세요." />;
+    return (
+      <EmptyState
+        compact
+        title="주문 내역이 없어요"
+        desc="펫 스토어에서 외출 준비물을 담아 보세요."
+        action={
+          <Link to="/shop" className="btn btn--outline btn--md">
+            펫 스토어로 가기
+          </Link>
+        }
+      />
+    );
   }
 
   return (
     <>
       <ul className="fe2-my-list">
         {orders.map((o) => {
-          const first = o.items[0];
+          const firstName = o.firstItemName ?? o.items[0]?.name ?? '상품';
           const cancelled = o.status === 'CANCELLED';
           const cancellable = ['ORDERED', 'PREPARING'].includes(o.status);
           const delivered = o.status === 'DELIVERED';
@@ -54,8 +93,8 @@ export default function MyOrders() {
             <li key={o.orderId} className="fe2-my-item">
               <div className="fe2-my-head">
                 <b>
-                  주문 {o.orderId} · {first.name}
-                  {o.items.length > 1 ? ` 외 ${o.items.length - 1}건` : ''}
+                  주문 {o.orderId} · {firstName}
+                  {o.itemCount > 1 ? ` 외 ${o.itemCount - 1}건` : ''}
                 </b>
                 <b>{won(o.totalAmount)}</b>
               </div>
@@ -79,7 +118,7 @@ export default function MyOrders() {
                   {o.items.map((i) => (
                     <li key={i.productId} className="fe2-my-line">
                       <span>
-                        {i.name} × {i.quantity} · {won(i.price * i.quantity)}
+                        {i.name} × {i.quantity} · {won(i.lineTotal ?? i.price * i.quantity)}
                       </span>
                       {/* 배송완료된 주문의 상품만 리뷰 작성 가능 */}
                       {delivered &&
@@ -108,15 +147,8 @@ export default function MyOrders() {
                     주문 취소
                   </Button>
                 )}
-                {USE_MOCK && !cancelled && o.status !== 'DELIVERED' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      advanceOrder(o.orderId);
-                      refresh();
-                    }}
-                  >
+                {DEMO_MODE && !cancelled && o.status !== 'DELIVERED' && (
+                  <Button variant="outline" size="sm" loading={advancing === o.orderId} onClick={() => advance(o)}>
                     (시연) 배송 단계 올리기
                   </Button>
                 )}
@@ -125,7 +157,7 @@ export default function MyOrders() {
           );
         })}
       </ul>
-      <ConfirmDialog open={!!target} title="주문을 취소할까요?" desc={target ? `주문 ${target.orderId} · ${won(target.totalAmount)} — 재고가 되돌려져요.` : ''} confirmText="주문 취소" onConfirm={confirmCancel} onCancel={() => setTarget(null)} />
+      <ConfirmDialog open={!!target} title="주문을 취소할까요?" desc={target ? `주문 ${target.orderId} · ${won(target.totalAmount)} — 재고가 되돌려져요.` : ''} confirmText="주문 취소" loading={cancelling} onConfirm={confirmCancel} onCancel={() => setTarget(null)} />
       <ReviewFormModal open={!!reviewTarget} onClose={() => setReviewTarget(null)} targetName={reviewTarget?.name} question="상품은 어떠셨나요?" onSubmit={submitReview} />
     </>
   );

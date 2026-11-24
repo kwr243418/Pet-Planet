@@ -1,17 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
-import { Button, EmptyState, OptionGroup, PageLoader, Tag } from '../../components/common/ui.jsx';
+import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Spinner, Tag } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { GENDER_LABEL } from '../../utils/format.js';
 import ReserveTabs from './ReserveTabs.jsx';
-import { PET_HOTELS, addDays, createHotelReservation, getHotelRooms } from './mockData.js';
+import { hotelApi } from '../../api/index.js';
+import { useAsync } from '../../hooks/useAsync.js';
+import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
 import './fe2.css';
 
-const todayStr = () => new Date().toLocaleDateString('sv-SE');
+const todayStr = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 const nightsBetween = (a, b) => Math.round((new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`)) / 86400000);
+/** 'YYYY-MM-DD' 날짜에 n일을 더해요 */
+const addDays = (dateStr, n) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString('sv-SE');
+};
 const won = (n) => `${n.toLocaleString('ko-KR')}원`;
 const STATUS_LABEL = { AVAILABLE: '입실 가능', OVERWEIGHT: '체중 초과로 입실 불가', BOOKED: '같은 날짜에 확정 예약 있음' };
 
@@ -28,50 +36,59 @@ function StatusRoute({ current = 0 }) {
   );
 }
 
-/** S05 펫 호텔 객실 예약 */
+/** S05 펫 호텔 객실 예약 — GET /api/pet-hotels?bookable=true, /rooms (체중·기간 검증), POST /api/hotel-reservations */
 export default function HotelReservePage() {
+  usePageTitle('펫 호텔 예약');
   const toast = useToast();
   const { isLoggedIn, booting, pets } = useAuth();
-  const [hotelId, setHotelId] = useState(PET_HOTELS[0].hotelId);
+  const [hotelId, setHotelId] = useState(null);
   const [petId, setPetId] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [roomId, setRoomId] = useState(null);
   const [errors, setErrors] = useState({});
   const [done, setDone] = useState(null);
-  const [version, setVersion] = useState(0); // 객실 목록을 다시 계산하려고 쓰는 숫자
+  const [submitting, setSubmitting] = useState(false);
 
-  const hotel = PET_HOTELS.find((h) => h.hotelId === hotelId);
+  const hotelsQ = useAsync(() => hotelApi.list({ bookable: true, size: 20 }).then((r) => r.content), []);
+  const hotels = hotelsQ.data ?? [];
+  const hotel = hotels.find((h) => h.hotelId === hotelId) ?? hotels[0];
   const pet = pets.find((p) => p.petId === petId);
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
-  const rooms = useMemo(
-    () => (pet && nights >= 1 ? getHotelRooms({ hotelId, petWeight: pet.weight, checkIn, checkOut }) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hotelId, pet, checkIn, checkOut, nights, version],
-  );
+  const ready = !!hotel && !!pet && nights >= 1;
+  // 서버가 반려동물 체중 vs 최대 수용 몸무게, 기간 겹침을 계산해서 AVAILABLE | OVERWEIGHT | BOOKED 로 알려줘요
+  const roomsQ = useAsync(() => hotelApi.rooms(hotel.hotelId, { petId, checkIn, checkOut }), [hotel?.hotelId, petId, checkIn, checkOut], { enabled: ready });
+  const rooms = ready ? roomsQ.data?.rooms ?? [] : [];
   const room = rooms.find((r) => r.roomId === roomId);
 
   const reset = () => {
     setDone(null);
     setRoomId(null);
     setErrors({});
-    setVersion((v) => v + 1);
+    if (ready) roomsQ.reload();
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const next = {};
     if (!petId) next.pet = '예약할 반려동물을 선택해 주세요.';
     if (!checkIn || !checkOut) next.date = '체크인과 체크아웃 날짜를 모두 선택해 주세요.';
     else if (!roomId) next.room = '입실 가능한 객실을 선택해 주세요.';
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      focusFirstInvalid();
+      return;
+    }
+    setSubmitting(true);
     try {
-      setDone(createHotelReservation({ roomId, petId, petName: pet.name, petWeight: pet.weight, checkInDate: checkIn, checkOutDate: checkOut }));
+      setDone(await hotelApi.reserve({ roomId, petId, checkInDate: checkIn, checkOutDate: checkOut }));
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message ?? '예약을 신청하지 못했어요.');
       setRoomId(null);
-      setVersion((v) => v + 1);
+      roomsQ.reload(); // ROOM_ALREADY_BOOKED / ROOM_OVERWEIGHT → 최신 상태로
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -82,7 +99,7 @@ export default function HotelReservePage() {
     </>
   );
 
-  if (booting) return <PageLoader />;
+  if (booting || (hotelsQ.loading && !hotelsQ.data)) return <PageLoader />;
 
   if (!isLoggedIn) {
     return (
@@ -131,6 +148,20 @@ export default function HotelReservePage() {
     );
   }
 
+  if (hotelsQ.error || !hotel) {
+    return (
+      <>
+        {hero}
+        <div className="container fe2">
+          <ReserveTabs />
+          {hotelsQ.error ? <ErrorState error={hotelsQ.error} onRetry={hotelsQ.reload} /> : <EmptyState title="예약할 수 있는 펫 호텔이 없어요" desc="객실이 등록된 호텔이 없어요. db/seed_demo.sql 로 시연용 호텔을 넣었는지 확인해 주세요." />}
+        </div>
+      </>
+    );
+  }
+
+  const station = hotel.nearestStation;
+
   return (
     <>
       {hero}
@@ -142,15 +173,15 @@ export default function HotelReservePage() {
             <h2 className="fe2-step-title">호텔 선택</h2>
             <OptionGroup
               label="호텔"
-              value={hotelId}
+              value={hotel.hotelId}
               onChange={(v) => {
                 setHotelId(v);
                 setRoomId(null);
               }}
-              options={PET_HOTELS.map((h) => ({ value: h.hotelId, label: h.name }))}
+              options={hotels.map((h) => ({ value: h.hotelId, label: h.name }))}
             />
             <p className="fe2-note">
-              {hotel.address} · {hotel.phone} · {hotel.nearestStation.stationName}역 {hotel.nearestStation.distanceKm}km
+              {[hotel.address, hotel.phone, station && `${station.stationName}역 ${station.distanceKm}km`, hotel.minPrice && `1박 ${won(hotel.minPrice)}부터`].filter(Boolean).join(' · ')}
             </p>
           </section>
 
@@ -225,8 +256,14 @@ export default function HotelReservePage() {
           {/* 3. 객실 목록 */}
           <section className="card fe2-section">
             <h2 className="fe2-step-title">3. 객실 선택</h2>
-            {rooms.length === 0 ? (
+            {!ready ? (
               <p className="fe2-note">반려동물과 기간을 고르면 체중에 맞는 객실이 나타나요.</p>
+            ) : roomsQ.error ? (
+              <ErrorState error={roomsQ.error} onRetry={roomsQ.reload} />
+            ) : roomsQ.loading && !roomsQ.data ? (
+              <Spinner />
+            ) : rooms.length === 0 ? (
+              <p className="fe2-note">이 호텔에는 등록된 객실이 없어요.</p>
             ) : (
               <div className="fe2-rooms" role="radiogroup" aria-label="객실 선택">
                 {rooms.map((r) => {
@@ -279,7 +316,7 @@ export default function HotelReservePage() {
               </ul>
             )}
             <StatusRoute current={0} />
-            <Button type="submit" size="lg" block>
+            <Button type="submit" size="lg" block loading={submitting}>
               객실 예약 신청
             </Button>
           </section>

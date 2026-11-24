@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
-import { Button, EmptyState, Field, Tag } from '../../components/common/ui.jsx';
+import { Button, EmptyState, ErrorState, Field, PageLoader, Tag } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
-import { createOrder, getCart, removeCartItem, updateCartItem } from './mockData.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { cartApi, orderApi } from '../../api/index.js';
+import { useAsync } from '../../hooks/useAsync.js';
+import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
 import './fe2.css';
 
 const CATEGORY_WORD = { 1: 'FOOD', 2: 'SNACK', 3: 'CARE', 4: 'GOODS' };
@@ -25,32 +28,50 @@ function DeliveryRoute({ current = 0 }) {
   );
 }
 
-/** S07 장바구니 · 주문서 */
+/** S07 장바구니 · 주문서 — GET /api/cart, PATCH·DELETE /api/cart/items/{id}, POST /api/orders (트랜잭션) */
 export default function CartOrderPage() {
+  usePageTitle('장바구니 · 주문서');
   const toast = useToast();
-  const [cart, setCart] = useState(getCart);
-  const [form, setForm] = useState({ receiverName: '', receiverPhone: '', address: '' });
+  const { user } = useAuth();
+  const cartQ = useAsync(() => cartApi.get(), []);
+  const cart = cartQ.data;
+  const [form, setForm] = useState(() => ({ receiverName: user?.name ?? '', receiverPhone: '', address: '' }));
   const [errors, setErrors] = useState({});
   const [done, setDone] = useState(null);
+  const [busy, setBusy] = useState(null); // 바꾸는 중인 cartId
+  const [paying, setPaying] = useState(false);
 
-  const reload = () => setCart(getCart());
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const changeQty = (item, delta) => {
+  const changeQty = async (item, delta) => {
     const next = item.quantity + delta;
-    if (next < 1) return;
+    if (next < 1 || busy) return;
     if (next > item.stockQuantity) {
       toast.show(`재고는 ${item.stockQuantity}개까지예요`);
       return;
     }
-    updateCartItem(item.cartId, next);
-    reload();
+    setBusy(item.cartId);
+    try {
+      cartQ.setData(await cartApi.update(item.cartId, next));
+    } catch (err) {
+      toast.error(err.message ?? '수량을 바꾸지 못했어요.');
+      cartQ.reload();
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const remove = (item) => {
-    removeCartItem(item.cartId);
-    reload();
-    toast.show('장바구니에서 뺐어요');
+  const remove = async (item) => {
+    setBusy(item.cartId);
+    try {
+      await cartApi.remove(item.cartId);
+      await cartQ.reload();
+      toast.show('장바구니에서 뺐어요');
+    } catch (err) {
+      toast.error(err.message ?? '장바구니에서 빼지 못했어요.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const findAddress = () => {
@@ -59,19 +80,30 @@ export default function CartOrderPage() {
     toast.show('예시 주소를 넣었어요');
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    if (paying) return;
     const next = {};
     if (form.receiverName.trim().length < 2) next.receiverName = '받는 분 이름을 2자 이상 입력해 주세요.';
     if (!PHONE_RE.test(form.receiverPhone.trim())) next.receiverPhone = '연락처를 010-0000-0000 모양으로 입력해 주세요.';
     if (!form.address.trim()) next.address = '배송 주소를 입력해 주세요.';
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      focusFirstInvalid();
+      return;
+    }
+    setPaying(true);
     try {
-      setDone(createOrder({ receiverName: form.receiverName.trim(), receiverPhone: form.receiverPhone.trim(), address: form.address.trim() }));
+      setDone(await orderApi.create({ receiverName: form.receiverName.trim(), receiverPhone: form.receiverPhone.trim(), address: form.address.trim() }));
     } catch (err) {
-      toast.error(err.message); // 재고 부족이면 주문 전체 취소, 장바구니는 그대로
-      reload();
+      if (err.fieldErrors?.length) {
+        setErrors(Object.fromEntries(err.fieldErrors.map((f) => [f.field, f.message])));
+        focusFirstInvalid();
+      }
+      toast.error(err.message ?? '주문하지 못했어요.'); // 재고 부족이면 주문 전체 취소, 장바구니는 그대로
+      cartQ.reload();
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -123,6 +155,26 @@ export default function CartOrderPage() {
     );
   }
 
+  if (cartQ.error && !cart) {
+    return (
+      <>
+        {hero}
+        <div className="container fe2">
+          <ErrorState error={cartQ.error} onRetry={cartQ.reload} />
+        </div>
+      </>
+    );
+  }
+
+  if (!cart) {
+    return (
+      <>
+        {hero}
+        <PageLoader />
+      </>
+    );
+  }
+
   if (cart.items.length === 0) {
     return (
       <>
@@ -157,18 +209,18 @@ export default function CartOrderPage() {
                       {item.stockQuantity <= 5 ? ` · 재고 ${item.stockQuantity}개 남음` : ''}
                     </span>
                     <div className="fe2-qty" role="group" aria-label={`${item.name} 수량`}>
-                      <button type="button" aria-label="수량 줄이기" disabled={item.quantity <= 1} onClick={() => changeQty(item, -1)}>
+                      <button type="button" aria-label="수량 줄이기" disabled={item.quantity <= 1 || busy === item.cartId} onClick={() => changeQty(item, -1)}>
                         −
                       </button>
                       <output aria-live="polite">{item.quantity}</output>
-                      <button type="button" aria-label="수량 늘리기" onClick={() => changeQty(item, 1)}>
+                      <button type="button" aria-label="수량 늘리기" disabled={busy === item.cartId} onClick={() => changeQty(item, 1)}>
                         +
                       </button>
                     </div>
                   </div>
                   <div className="fe2-line__side">
                     <b>{won(item.lineTotal)}</b>
-                    <Button variant="outline" size="sm" onClick={() => remove(item)}>
+                    <Button variant="outline" size="sm" loading={busy === item.cartId} onClick={() => remove(item)}>
                       빼기
                     </Button>
                   </div>
@@ -212,7 +264,7 @@ export default function CartOrderPage() {
                 <span>총 결제 금액</span>
                 <b className="en">{won(cart.totalAmount)}</b>
               </p>
-              <Button type="submit" size="lg" block>
+              <Button type="submit" size="lg" block loading={paying}>
                 가상 결제하기
               </Button>
               <p className="fe2-note">재고가 부족하면 주문 전체가 취소되고, 장바구니는 그대로 남아요.</p>

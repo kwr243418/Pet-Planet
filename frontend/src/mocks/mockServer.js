@@ -3,8 +3,10 @@
 
 import { haversineKm } from '../utils/geo.js';
 import { STATIONS, PLACE_CATEGORIES, PLACES, SEED_USERS, SEED_PETS, SEED_REVIEWS, SEED_BOOKMARKS } from './seed.js';
+import { HOSPITALS, PRODUCTS, commerceSeed } from './seedCommerce.js';
+import { NO_MATCH, commerceRoutes, reviewNotAllowedReason, visitDateOf } from './mockCommerce.js';
 
-const DB_KEY = 'pp-mock-db-v2';
+const DB_KEY = 'pp-mock-db-v3'; // v3: FE2 예약·쇼핑 데이터 추가
 export const NEARBY_KM = 1; // place_stations 매핑 기준 반경
 
 // ---------- 저장소 (브라우저: localStorage / 테스트: 메모리) ----------
@@ -16,12 +18,19 @@ const defaultStorage = {
 };
 
 function freshDb() {
+  const commerce = commerceSeed();
   return {
     users: structuredClone(SEED_USERS),
     pets: structuredClone(SEED_PETS),
-    reviews: structuredClone(SEED_REVIEWS),
+    reviews: [...structuredClone(SEED_REVIEWS), ...commerce.reviews],
     bookmarks: structuredClone(SEED_BOOKMARKS),
-    seq: { user: 100, pet: 100, review: 1000, bookmark: 100 },
+    // FE2 (예약·쇼핑) — 재고가 줄어들어서 상품도 DB 에 복사
+    products: structuredClone(PRODUCTS),
+    hospitalReservations: commerce.hospitalReservations,
+    hotelReservations: commerce.hotelReservations,
+    orders: commerce.orders,
+    cart: [],
+    seq: { user: 100, pet: 100, review: 6000, bookmark: 100, hospitalReservation: 100, hotelReservation: 100, order: 100, cart: 100 },
   };
 }
 
@@ -256,20 +265,27 @@ export function createMockServer({ storage = defaultStorage } = {}) {
     }
     if ((p = r.is('GET', '/users/me/summary'))) {
       const user = auth();
+      const active = (x) => x.userId === user.userId && ['PENDING', 'CONFIRMED'].includes(x.status);
       return {
-        reservationCount: 0, // BE2: hospital_reservations + hotel_reservations (진행 중) 집계
-        orderCount: 0, // BE2: orders 집계
+        reservationCount: db.hospitalReservations.filter(active).length + db.hotelReservations.filter(active).length,
+        orderCount: db.orders.filter((x) => x.userId === user.userId).length,
         reviewCount: db.reviews.filter((x) => x.userId === user.userId).length,
         bookmarkCount: db.bookmarks.filter((x) => x.userId === user.userId).length,
       };
     }
     if ((p = r.is('DELETE', '/users/me'))) {
       const user = auth();
-      // 실제 BE: 진행 중 예약(승인대기·예약확정) / 배송 전 주문이 있으면 409 WITHDRAW_BLOCKED
-      if (body?.simulateBlocked) fail(409, 'WITHDRAW_BLOCKED', '진행 중인 예약이나 배송 전 주문이 있어 탈퇴할 수 없어요.');
+      // 진행 중 예약(승인대기·예약확정) / 배송 전 주문(결제완료·배송준비)이 있으면 409 WITHDRAW_BLOCKED
+      const blocking =
+        [...db.hospitalReservations, ...db.hotelReservations].some((x) => x.userId === user.userId && ['PENDING', 'CONFIRMED'].includes(x.status)) ||
+        db.orders.some((x) => x.userId === user.userId && ['ORDERED', 'PREPARING'].includes(x.status));
+      if (body?.simulateBlocked || blocking) fail(409, 'WITHDRAW_BLOCKED', '진행 중인 예약이나 배송 전 주문이 있어 탈퇴할 수 없어요.');
       db.users = db.users.filter((u) => u !== user);
       db.pets = db.pets.filter((x) => x.userId !== user.userId);
       db.bookmarks = db.bookmarks.filter((x) => x.userId !== user.userId);
+      db.reviews = db.reviews.filter((x) => x.userId !== user.userId);
+      db.cart = db.cart.filter((x) => x.userId !== user.userId);
+      db.orders = db.orders.filter((x) => x.userId !== user.userId);
       save();
       return null;
     }
@@ -375,13 +391,20 @@ export function createMockServer({ storage = defaultStorage } = {}) {
     }
     if ((p = r.is('POST', '/reviews'))) {
       const user = auth();
-      const { targetType = 'PLACE', targetId, rating, content } = body;
+      const { targetType = 'PLACE', targetId, rating, content, petId } = body;
+      if (!['PLACE', 'PRODUCT', 'HOSPITAL'].includes(targetType)) fail(400, 'VALIDATION_ERROR', '리뷰 대상은 PLACE, PRODUCT, HOSPITAL 중 하나예요.');
       validateReviewBody(rating, content);
-      if (targetType === 'PLACE' && !PLACES.some((x) => x.placeId === Number(targetId))) fail(404, 'PLACE_NOT_FOUND', '존재하지 않는 장소예요.');
-      if (db.reviews.some((x) => x.userId === user.userId && x.targetType === targetType && x.targetId === Number(targetId)))
-        fail(409, 'DUPLICATE_REVIEW', '이 장소에는 이미 리뷰를 남기셨어요. 기존 리뷰를 수정해 주세요.');
+      const tid = Number(targetId);
+      if (targetType === 'PLACE' && !PLACES.some((x) => x.placeId === tid)) fail(404, 'PLACE_NOT_FOUND', '존재하지 않는 장소예요.');
+      if (targetType === 'PRODUCT' && !db.products.some((x) => x.productId === tid)) fail(404, 'PRODUCT_NOT_FOUND', '리뷰할 대상을 찾을 수 없어요.');
+      if (targetType === 'HOSPITAL' && !HOSPITALS.some((x) => x.hospitalId === tid)) fail(404, 'HOSPITAL_NOT_FOUND', '리뷰할 대상을 찾을 수 없어요.');
+      const notAllowed = reviewNotAllowedReason(db, user.userId, targetType, tid);
+      if (notAllowed) fail(403, 'REVIEW_NOT_ALLOWED', notAllowed);
+      if (db.reviews.some((x) => x.userId === user.userId && x.targetType === targetType && x.targetId === tid))
+        fail(409, 'DUPLICATE_REVIEW', `${{ PRODUCT: '이 상품', HOSPITAL: '이 병원' }[targetType] ?? '이 장소'}에는 이미 리뷰를 남기셨어요. 기존 리뷰를 수정해 주세요.`);
+      if (petId !== undefined && petId !== null) ownPet(db, user, petId);
       const now = new Date().toISOString();
-      const review = { reviewId: ++db.seq.review, userId: user.userId, targetType, targetId: Number(targetId), rating: Number(rating), content: content.trim(), createdAt: now, updatedAt: now };
+      const review = { reviewId: ++db.seq.review, userId: user.userId, targetType, targetId: tid, petId: petId ? Number(petId) : null, rating: Number(rating), content: content.trim(), createdAt: now, updatedAt: now };
       db.reviews.push(review);
       save();
       return toReview(db, review, user.userId);
@@ -406,9 +429,27 @@ export function createMockServer({ storage = defaultStorage } = {}) {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map((x) => ({
           ...toReview(db, x, user.userId),
-          targetName: x.targetType === 'PLACE' ? PLACES.find((pl) => pl.placeId === x.targetId)?.name : null,
+          targetName:
+            x.targetType === 'PLACE'
+              ? PLACES.find((pl) => pl.placeId === x.targetId)?.name
+              : x.targetType === 'PRODUCT'
+                ? db.products.find((pr) => pr.productId === x.targetId)?.name
+                : HOSPITALS.find((h) => h.hospitalId === x.targetId)?.name ?? null,
         }));
     }
+
+    if ((p = r.is('GET', '/reviews/eligibility'))) {
+      const targetType = query.targetType ?? 'PLACE';
+      const targetId = Number(query.targetId);
+      if (!me) return { targetType, targetId, allowed: false, alreadyReviewed: false, reason: '로그인이 필요해요.' };
+      const already = db.reviews.some((x) => x.userId === me.userId && x.targetType === targetType && x.targetId === targetId);
+      const reason = already ? '이미 리뷰를 남기셨어요.' : reviewNotAllowedReason(db, me.userId, targetType, targetId);
+      return { targetType, targetId, allowed: !reason, alreadyReviewed: already, reason };
+    }
+
+    // ===== FE2: 병원 · 호텔 · 상품 · 장바구니 · 주문 (mockCommerce.js) =====
+    const commerce = commerceRoutes({ r, db, me, auth, query, body, save, fail, ratingOf, own: ownPet });
+    if (commerce !== NO_MATCH) return commerce;
 
     fail(404, 'NOT_FOUND', `목 서버에 없는 API예요: ${method} ${path}`);
   }
@@ -460,13 +501,16 @@ function validateReviewBody(rating, content) {
 
 function toReview(db, r, myId) {
   const author = db.users.find((u) => u.userId === r.userId);
-  const pet = db.pets.find((x) => x.userId === r.userId);
+  // 함께한 반려동물 (리뷰의 petId, 없으면 작성자의 대표 반려동물)
+  const pet = (r.petId && db.pets.find((x) => x.petId === r.petId)) || db.pets.find((x) => x.userId === r.userId);
   return {
     reviewId: r.reviewId,
     userId: r.userId,
     userName: author?.name ?? '탈퇴한 회원',
     petName: pet?.name ?? null,
     petBreed: pet?.breed ?? null,
+    petWeight: pet?.weight ?? null,
+    visitDate: r.targetType === 'HOSPITAL' ? visitDateOf(db, r.userId, r.targetId) : null,
     targetType: r.targetType,
     targetId: r.targetId,
     rating: r.rating,

@@ -26,6 +26,11 @@ export default function MyPage() {
   const { user, pets } = useAuth();
   const summary = useAsync(() => userApi.summary(), []);
   const [editOpen, setEditOpen] = useState(false);
+  const [activity, setActivity] = useState(0); // 예약·주문·리뷰가 바뀌면 올려서 요약·리뷰 목록을 다시 읽어요
+  const onActivity = () => {
+    summary.reload();
+    setActivity((v) => v + 1);
+  };
   const s = summary.data;
 
   const tiles = [
@@ -110,8 +115,8 @@ export default function MyPage() {
                 새 예약
               </Link>
             </div>
-            {/* FE2: hospital_reservations · hotel_reservations 목록, 상태 칩(승인대기/예약확정), [취소]/[입실 안내] */}
-            <MyReservations />
+            {/* FE2: hospital_reservations · hotel_reservations 목록, 상태 칩(승인대기/예약확정/이용완료), [취소]/[리뷰 쓰기] */}
+            <MyReservations onChanged={onActivity} />
           </div>
           <div className="panel card" id="orders">
             <div className="panel__head">
@@ -123,12 +128,12 @@ export default function MyPage() {
               </Link>
             </div>
             {/* FE2: orders 목록, 배송 단계 노선(결제완료→배송준비→배송중→배송완료), [주문 상세]/[주문 취소] */}
-            <MyOrders />
+            <MyOrders onChanged={onActivity} />
           </div>
         </section>
 
         <section className="section two-col">
-          <MyReviews />
+          <MyReviews refreshKey={activity} />
           <MyBookmarks onChange={summary.reload} />
         </section>
 
@@ -140,9 +145,11 @@ export default function MyPage() {
   );
 }
 
-function MyReviews() {
+const REVIEW_TYPE_LABEL = { PLACE: '장소', PRODUCT: '상품', HOSPITAL: '병원' };
+
+function MyReviews({ refreshKey }) {
   const [type, setType] = useState('ALL');
-  const list = useAsync(() => reviewApi.mine(type === 'ALL' ? undefined : type), [type]);
+  const list = useAsync(() => reviewApi.mine(type === 'ALL' ? undefined : type), [type, refreshKey]);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const toast = useToast();
@@ -161,20 +168,25 @@ function MyReviews() {
             { value: 'ALL', label: '전체' },
             { value: 'PLACE', label: '장소' },
             { value: 'PRODUCT', label: '상품' },
+            { value: 'HOSPITAL', label: '병원' },
           ]}
         />
       </div>
       {list.error && <ErrorState error={list.error} onRetry={list.reload} />}
       {list.loading && !list.data && <Skeleton h={90} r={20} />}
-      {list.data?.length === 0 && <EmptyState compact title="작성한 리뷰가 없어요" desc="다녀온 장소나 산 상품의 후기를 남겨 보세요." />}
+      {list.data?.length === 0 && <EmptyState compact title="작성한 리뷰가 없어요" desc="다녀온 장소, 진료받은 병원, 산 상품의 후기를 남겨 보세요." />}
       <ul className="mini-list">
         {list.data?.map((r) => (
           <li key={r.reviewId} className="mini-row mini-row--review">
             <div className="mini-row__top">
-              <Tag tone="mint">{r.targetType === 'PLACE' ? '장소' : '상품'}</Tag>
+              <Tag tone="mint">{REVIEW_TYPE_LABEL[r.targetType] ?? '리뷰'}</Tag>
               {r.targetType === 'PLACE' ? (
                 <Link to={`/places/${r.targetId}#reviews`} className="mini-row__title">
                   {r.targetName}
+                </Link>
+              ) : r.targetType === 'HOSPITAL' ? (
+                <Link to={`/hospitals/${r.targetId}`} className="mini-row__title">
+                  {r.targetName ?? '동물병원'}
                 </Link>
               ) : (
                 <span className="mini-row__title">{r.targetName ?? '상품'}</span>

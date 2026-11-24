@@ -1,41 +1,64 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { TinyDog } from '../../components/illust/index.jsx';
-import { Button, EmptyState, OptionGroup, Stars, Tag } from '../../components/common/ui.jsx';
+import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Stars, Tag } from '../../components/common/ui.jsx';
 import { ReviewCard } from '../../components/place/Reviews.jsx';
+import { useToast } from '../../components/common/Toast.jsx';
+import { hospitalApi, reviewApi } from '../../api/index.js';
+import { useAsync } from '../../hooks/useAsync.js';
+import { usePageTitle } from '../../hooks/usePage.js';
 import { formatDate } from '../../utils/format.js';
-import { HOSPITALS, HOSPITAL_REVIEWS } from './mockData.js';
 import './fe2.css';
 
 const PAGE_SIZE = 3;
 
-/** S04-0 동물병원 상세 · 리뷰 */
+/** S04-0 동물병원 상세 · 리뷰 — GET /api/hospitals/{id}, GET /api/reviews?targetType=HOSPITAL */
 export default function HospitalDetailPage() {
   const { hospitalId } = useParams();
-  const hospital = HOSPITALS.find((h) => h.hospitalId === Number(hospitalId));
+  const toast = useToast();
   const [tab, setTab] = useState('reviews'); // 처음에는 리뷰 탭
   const [sort, setSort] = useState('latest');
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [more, setMore] = useState({ items: [], page: 0, hasNext: false, loading: false });
 
-  const reviews = useMemo(() => HOSPITAL_REVIEWS.filter((r) => r.hospitalId === Number(hospitalId)), [hospitalId]);
-  const sorted = useMemo(
-    () => [...reviews].sort((a, b) => (sort === 'rating' ? b.rating - a.rating : new Date(b.createdAt) - new Date(a.createdAt))),
-    [reviews, sort],
-  );
+  const hospitalQ = useAsync(() => hospitalApi.get(hospitalId), [hospitalId]);
+  const reviewsQ = useAsync(async () => {
+    const res = await reviewApi.list(hospitalId, { targetType: 'HOSPITAL', sort: sort === 'rating' ? 'rating_desc' : 'latest', page: 0, size: PAGE_SIZE });
+    setMore({ items: [], page: 0, hasNext: res.hasNext, loading: false });
+    return res;
+  }, [hospitalId, sort]);
+  const hospital = hospitalQ.data;
+  usePageTitle(hospital?.name ?? '동물병원 상세');
 
-  if (!hospital) {
+  const loadMore = async () => {
+    setMore((m) => ({ ...m, loading: true }));
+    try {
+      const res = await reviewApi.list(hospitalId, { targetType: 'HOSPITAL', sort: sort === 'rating' ? 'rating_desc' : 'latest', page: more.page + 1, size: PAGE_SIZE });
+      setMore((m) => ({ items: [...m.items, ...res.content], page: m.page + 1, hasNext: res.hasNext, loading: false }));
+    } catch (err) {
+      setMore((m) => ({ ...m, loading: false }));
+      toast.error(err.message ?? '리뷰를 더 불러오지 못했어요.');
+    }
+  };
+
+  if (hospitalQ.error) {
     return (
       <div className="container fe2">
-        <EmptyState title="병원을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={<Link to="/reservations/hospital" className="btn btn--outline btn--md">예약 화면으로</Link>} />
+        {hospitalQ.error.status === 404 ? (
+          <EmptyState title="병원을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={<Link to="/reservations/hospital" className="btn btn--outline btn--md">예약 화면으로</Link>} />
+        ) : (
+          <ErrorState error={hospitalQ.error} onRetry={hospitalQ.reload} />
+        )}
       </div>
     );
   }
+  if (!hospital) return <PageLoader />;
 
-  const count = reviews.length;
-  const avg = count ? reviews.reduce((s, r) => s + r.rating, 0) / count : 0;
-  const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  reviews.forEach((r) => dist[r.rating]++);
+  const summary = reviewsQ.data?.summary;
+  const count = summary?.reviewCount ?? hospital.reviewCount ?? 0;
+  const avg = summary?.avgRating ?? hospital.avgRating ?? 0;
+  const dist = summary?.distribution ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const shown = [...(reviewsQ.data?.content ?? []), ...more.items];
   const station = hospital.nearestStation;
 
   return (
@@ -53,7 +76,7 @@ export default function HospitalDetailPage() {
         {/* 병원 헤더 */}
         <section className="card fe2-hospital">
           <div className="fe2-hospital__tags">
-            <Tag tone="mint">제휴 병원</Tag>
+            {hospital.partner && <Tag tone="mint">제휴 병원</Tag>}
             {station && (
               <Tag>
                 {station.stationName}역 {station.distanceKm}km
@@ -69,11 +92,11 @@ export default function HospitalDetailPage() {
           </div>
           <dl className="fe2-info">
             <dt>진료시간</dt>
-            <dd>{hospital.operatingHours}</dd>
+            <dd>{hospital.operatingHours ?? '병원에 문의해 주세요'}</dd>
             <dt>주소</dt>
             <dd>{hospital.address}</dd>
             <dt>전화번호</dt>
-            <dd>{hospital.phone}</dd>
+            <dd>{hospital.phone ?? '-'}</dd>
           </dl>
         </section>
 
@@ -108,32 +131,35 @@ export default function HospitalDetailPage() {
               <OptionGroup
                 label="리뷰 정렬"
                 value={sort}
-                onChange={(v) => {
-                  setSort(v);
-                  setVisible(PAGE_SIZE);
-                }}
+                onChange={setSort}
                 options={[
                   { value: 'latest', label: '최신순' },
                   { value: 'rating', label: '별점 높은순' },
                 ]}
               />
             </div>
-            {count === 0 ? (
+            {reviewsQ.error ? (
+              <ErrorState error={reviewsQ.error} onRetry={reviewsQ.reload} />
+            ) : reviewsQ.loading && !reviewsQ.data ? (
+              <PageLoader />
+            ) : count === 0 ? (
               <EmptyState compact title="아직 방문 리뷰가 없어요" desc="진료를 받은 뒤 첫 리뷰를 남겨 보세요." />
             ) : (
               <div className="fe2-reviews__list">
-                {sorted.slice(0, visible).map((r) => (
+                {shown.map((r) => (
                   <div key={r.reviewId}>
                     <ReviewCard review={r} />
-                    <p className="fe2-review-meta">
-                      방문 {formatDate(r.visitDate)} · {r.petBreed} {r.petWeight}kg
-                    </p>
+                    {(r.visitDate || r.petBreed) && (
+                      <p className="fe2-review-meta">
+                        {[r.visitDate && `방문 ${formatDate(r.visitDate)}`, r.petBreed && `${r.petBreed}${r.petWeight ? ` ${r.petWeight}kg` : ''}`].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-            {visible < sorted.length && (
-              <Button variant="outline" block onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+            {more.hasNext && (
+              <Button variant="outline" block loading={more.loading} onClick={loadMore}>
                 리뷰 더보기
               </Button>
             )}
@@ -141,22 +167,23 @@ export default function HospitalDetailPage() {
         ) : (
           <section className="card fe2-about">
             <h3>병원 소개</h3>
-            <p>{hospital.intro}</p>
+            <p>{hospital.intro ?? '병원 소개가 아직 등록되지 않았어요.'}</p>
             <h3>진료 과목</h3>
             <div className="fe2-about__chips">
-              {hospital.departments.map((d) => (
+              {(hospital.departments ?? []).length === 0 && <span className="fe2-note">병원에 문의해 주세요</span>}
+              {(hospital.departments ?? []).map((d) => (
                 <Tag key={d}>{d}</Tag>
               ))}
             </div>
             <h3>진료시간</h3>
             <p>
-              {hospital.operatingHours}
+              {hospital.operatingHours ?? '병원에 문의해 주세요'}
               <br />
-              점심시간 {hospital.lunchTime}
+              점심시간 {hospital.lunchTime ?? '13:00-14:00'}
             </p>
             <h3>오시는 길</h3>
             <p>
-              {station ? `${station.lines.join(', ')} ${station.stationName}역에서 약 ${station.distanceKm}km` : hospital.address}
+              {station ? `${(station.lines ?? [station.line]).join(', ')} ${station.stationName}역에서 약 ${station.distanceKm}km` : '가까운 지하철역 정보가 없어요'}
               <br />
               {hospital.address}
             </p>
