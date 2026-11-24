@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { petApi } from '../../api/index.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
+import { focusFirstInvalid, usePageTitle, useUnsavedGuard } from '../../hooks/usePage.js';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { SittingDog } from '../../components/illust/index.jsx';
 import { Button, ConfirmDialog, ErrorState, PageLoader } from '../../components/common/ui.jsx';
@@ -13,6 +14,7 @@ import { MEMBER_STEPS } from '../auth/Signup.jsx';
 export default function PetForm() {
   const { petId } = useParams();
   const isEdit = !!petId;
+  usePageTitle(isEdit ? '반려동물 정보 수정' : '반려동물 추가');
   const [pet, setPet] = useState(EMPTY_PET);
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
@@ -29,21 +31,32 @@ export default function PetForm() {
     setLoadError(null);
     petApi
       .get(petId)
-      .then((p) => setPet({ ...p, weight: String(p.weight) }))
+      .then((p) => {
+        const v = { ...p, weight: String(p.weight) };
+        setPet(v);
+        setOriginal(JSON.stringify(v));
+      })
       .catch(setLoadError)
       .finally(() => setLoading(false));
   };
   useEffect(() => {
+    if (!isEdit) setOriginal(JSON.stringify(EMPTY_PET));
     if (isEdit) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [petId]);
 
   const errors = submitted ? { ...validatePet(pet), ...serverErrors } : serverErrors;
+  const [original, setOriginal] = useState(null);
+  const dirty = original !== null && JSON.stringify(pet) !== original;
+  useUnsavedGuard(dirty && !saving);
 
   const submit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
-    if (Object.keys(validatePet(pet)).length) return;
+    if (Object.keys(validatePet(pet)).length) {
+      focusFirstInvalid(e.currentTarget);
+      return;
+    }
     setSaving(true);
     const { name, breed, weight, gender, neutered, photoUrl } = toPetPayload(pet);
     const payload = { name, breed, weight, gender, neutered, photoUrl };
@@ -66,7 +79,7 @@ export default function PetForm() {
 
   return (
     <>
-      <PageHero line="M" en={isEdit ? 'MY PET' : 'NEW PET'} compact title={isEdit ? `${pet.name} 정보 수정` : '반려동물 추가 등록'} desc="체중은 펫 호텔 객실의 최대 수용 몸무게와 자동으로 비교돼요." art={<SittingDog size={180} />} />
+      <PageHero line="M" en={isEdit ? 'MY PET' : 'NEW PET'} compact title={isEdit ? `${pet.name} 정보 수정` : '반려동물 추가 등록'} desc="체중은 펫 호텔 객실의 최대 수용 몸무게와 자동으로 비교돼요." art={<SittingDog size={200} className="hero-dog" />} />
       <NowStation steps={MEMBER_STEPS} current={1} />
       <div className="container">
         <form className="card pet-form" onSubmit={submit} noValidate>

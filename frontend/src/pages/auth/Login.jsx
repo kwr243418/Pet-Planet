@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
+import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
 import { Button, Field, PasswordField } from '../../components/common/ui.jsx';
 import { SittingDog } from '../../components/illust/index.jsx';
 import { USE_MOCK } from '../../api/client.js';
@@ -24,6 +25,7 @@ export function AuthFrame({ en, title, children }) {
 }
 
 export default function Login() {
+  usePageTitle('로그인');
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -44,7 +46,10 @@ export default function Login() {
     e.preventDefault();
     const errs = { email: validateEmail(form.email), password: form.password ? '' : '비밀번호를 입력해 주세요.' };
     setErrors(errs);
-    if (errs.email || errs.password) return;
+    if (errs.email || errs.password) {
+      focusFirstInvalid(e.currentTarget);
+      return;
+    }
     setLoading(true);
     try {
       const user = await login(form.email.trim(), form.password);

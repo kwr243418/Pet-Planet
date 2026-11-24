@@ -3,9 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../../api/index.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
+import { focusFirstInvalid, usePageTitle, useUnsavedGuard } from '../../hooks/usePage.js';
 import { LetterBadge, NowStation } from '../../components/layout/Site.jsx';
 import { SittingDog } from '../../components/illust/index.jsx';
-import { Button, Field, PasswordField } from '../../components/common/ui.jsx';
+import { Button, Field, PasswordField, PasswordRules } from '../../components/common/ui.jsx';
 import PetFields, { EMPTY_PET, toPetPayload, validatePet } from '../../components/pet/PetFields.jsx';
 import { runValidators, validateEmail, validateName, validatePassword, validatePasswordConfirm } from '../../utils/validators.js';
 
@@ -24,6 +25,7 @@ const ROLES = [
 
 /** S09 회원가입 · 반려동물 등록 — 계정과 첫 반려동물을 한 번에 */
 export default function Signup() {
+  usePageTitle('회원가입');
   const [account, setAccount] = useState({ email: '', password: '', passwordConfirm: '', name: '', role: 'USER' });
   const [pets, setPets] = useState([{ ...EMPTY_PET }]);
   const [submitted, setSubmitted] = useState(false);
@@ -39,7 +41,17 @@ export default function Signup() {
 
   const normEmail = account.email.trim().toLowerCase();
   const accErrors = runValidators(account, ACCOUNT_RULES);
+  // 서버가 준 반려동물 필드 오류(pets[0].weight)를 해당 칸에 표시 (Day 12)
+  const petServerErrors = pets.map((_, i) =>
+    Object.fromEntries(
+      Object.entries(serverErrors)
+        .filter(([k, v]) => v && k.startsWith(`pets[${i}].`))
+        .map(([k, v]) => [k.slice(`pets[${i}].`.length), v]),
+    ),
+  );
   const petErrors = pets.map(validatePet);
+  const dirty = !!(account.email || account.password || account.name || pets.some((p) => p.name || p.breed || p.weight || p.photoUrl));
+  useUnsavedGuard(dirty && !loading);
   const emailVerified = emailCheck.status === 'ok' && emailCheck.email === normEmail;
   const show = (k) => serverErrors[k] || ((submitted || touched[k]) && accErrors[k]) || '';
 
@@ -70,10 +82,12 @@ export default function Signup() {
     setSubmitted(true);
     if (Object.keys(accErrors).length || petErrors.some((x) => Object.keys(x).length)) {
       toast.error('입력하지 않은 항목이 있어요.');
+      focusFirstInvalid(e.currentTarget);
       return;
     }
     if (!emailVerified) {
       toast.error('이메일 중복 확인을 해 주세요.');
+      document.querySelector('input[type=email]')?.focus();
       return;
     }
     setLoading(true);
@@ -83,7 +97,10 @@ export default function Signup() {
       navigate(params.get('redirect') || '/', { replace: true });
     } catch (err) {
       if (err.code === 'DUPLICATE_EMAIL') setEmailCheck({ status: 'taken', email: normEmail });
-      if (err.fieldErrors?.length) setServerErrors(err.fieldMap);
+      if (err.fieldErrors?.length) {
+        setServerErrors(err.fieldMap);
+        focusFirstInvalid();
+      }
       toast.error(err.message);
     } finally {
       setLoading(false);
@@ -143,7 +160,10 @@ export default function Signup() {
                   setAcc('email')(e);
                   if (emailCheck.status !== 'checking') setEmailCheck({ status: 'idle', email: '' });
                 }}
-                onBlur={blur('email')}
+                onBlur={(e) => {
+                  if (e.target.value !== e.target.value.trim()) setAcc('email')(e.target.value.trim());
+                  blur('email')();
+                }}
                 error={emailMsg}
                 hint={emailVerified ? '사용할 수 있는 이메일이에요' : ''}
                 right={
@@ -153,7 +173,10 @@ export default function Signup() {
                 }
               />
               <div className="grid-2">
-                <PasswordField label="비밀번호" autoComplete="new-password" placeholder="영문·숫자·특수문자 8~20자" value={account.password} onChange={setAcc('password')} onBlur={blur('password')} error={show('password')} />
+                <div>
+                  <PasswordField label="비밀번호" autoComplete="new-password" placeholder="영문·숫자·특수문자 8~20자" value={account.password} onChange={setAcc('password')} onBlur={blur('password')} error={show('password')} />
+                  <PasswordRules value={account.password} />
+                </div>
                 <PasswordField label="비밀번호 확인" autoComplete="new-password" placeholder="한 번 더 입력" value={account.passwordConfirm} onChange={setAcc('passwordConfirm')} onBlur={blur('passwordConfirm')} error={show('passwordConfirm')} />
               </div>
               <Field label="이름" autoComplete="name" placeholder="2~10자" value={account.name} onChange={setAcc('name')} onBlur={blur('name')} error={show('name')} />
@@ -186,8 +209,11 @@ export default function Signup() {
                 <PetFields
                   idPrefix={`pet${i}`}
                   value={pet}
-                  onChange={(v) => setPets((ps) => ps.map((p, j) => (j === i ? v : p)))}
-                  errors={submitted ? petErrors[i] : {}}
+                  onChange={(v) => {
+                    setPets((ps) => ps.map((p, j) => (j === i ? v : p)));
+                    setServerErrors((s) => Object.fromEntries(Object.entries(s).filter(([k]) => !k.startsWith(`pets[${i}].`))));
+                  }}
+                  errors={{ ...(submitted ? petErrors[i] : {}), ...petServerErrors[i] }}
                 />
               </fieldset>
             ))}

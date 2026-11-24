@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { placeApi, stationApi } from '../api/index.js';
 import { useAsync } from '../hooks/useAsync.js';
+import { usePageTitle } from '../hooks/usePage.js';
 import { NowStation, PageHero } from '../components/layout/Site.jsx';
 import { StationBuildings } from '../components/illust/index.jsx';
 import { Button, EmptyState, ErrorState, Skeleton } from '../components/common/ui.jsx';
@@ -91,6 +92,7 @@ export default function Explore() {
   }, [lineStations.data]);
 
   const station = lineStations.data?.find((s) => s.stationId === stationId) ?? null;
+  usePageTitle(station ? `${stationLabel(station.stationName)} 주변 장소` : '역세권 장소 탐색');
   useEffect(() => {
     if (station) localStorage.setItem(LAST_KEY, JSON.stringify({ stationId: station.stationId, stationName: station.stationName, line: station.line, lat: station.lat, lng: station.lng }));
   }, [station]);
