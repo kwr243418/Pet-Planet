@@ -47,9 +47,9 @@ npm run dev      # /api 요청이 localhost:8080 으로 프록시돼요 (vite.co
 
 | 이메일 | 역할 | 용도 |
 |---|---|---|
-| `demo@petplanet.com` | USER | 반려동물 콩이 3.2kg · 보리 18kg, 이용완료 병원 예약·배송완료 주문 1건씩 (리뷰 작성 시연) |
-| `partner@petplanet.com` | BUSINESS | 시연 병원 3곳·호텔 2곳 사업자 → 예약 승인 `PATCH …/status` |
-| `admin@petplanet.com` | ADMIN | 배송 단계 변경 `PATCH /api/orders/{id}/status` |
+| `demo@petplanet.kr` | USER | 반려동물 콩이 3.2kg · 보리 18kg, 이용완료 병원 예약·배송완료 주문 1건씩 (리뷰 작성 시연) |
+| `partner@petplanet.kr` | BUSINESS | 시연 병원 3곳·호텔 2곳 사업자 → 예약 승인 `PATCH …/status` |
+| `admin@petplanet.kr` | ADMIN | 배송 단계 변경 `PATCH /api/orders/{id}/status` |
 
 `application.yml` 의 `petplanet.demo-mode: true` 면 예약·주문한 **본인도** 상태를 한 단계씩 올릴 수 있어요 (마이페이지 "(시연) 다음 상태로" 버튼).
 

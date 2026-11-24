@@ -7,10 +7,10 @@
 -- ⚠️ 계정 비밀번호는 '{plain}…' 으로 넣어요. 백엔드 서버를 한 번 켜면 BCrypt 로 바뀌어서 그때부터 로그인돼요.
 --
 -- 시연 계정 (비밀번호 모두 petplanet123!)
---   demo@petplanet.com     김펫러버  USER      반려동물 콩이(푸들 3.2kg) · 보리(진돗개 18kg) — 호텔 체중 검증 시연
---   partner@petplanet.com  홍대사장  BUSINESS  시연 병원 3곳 · 호텔 2곳의 사업자 (예약 승인)
---   admin@petplanet.com    관리자    ADMIN     배송 단계 변경
---   review1~3@petplanet.com                    다른 이용자 (병원·상품·장소 리뷰 작성자)
+--   demo@petplanet.kr     김펫러버  USER      반려동물 콩이(푸들 3.2kg) · 보리(진돗개 18kg) — 호텔 체중 검증 시연
+--   partner@petplanet.kr  홍대사장  BUSINESS  시연 병원 3곳 · 호텔 2곳의 사업자 (예약 승인)
+--   admin@petplanet.kr    관리자    ADMIN     배송 단계 변경
+--   review1~3@petplanet.kr                    다른 이용자 (병원·상품·장소 리뷰 작성자)
 -- ============================================================================
 USE petplanet;
 SET NAMES utf8mb4;
@@ -19,9 +19,10 @@ SET NAMES utf8mb4;
 -- 0. 지우기 — 시연 계정(→ CASCADE 로 반려동물·찜·리뷰·장바구니·주문), schema_full 옛 샘플, 이 파일의 병원·호텔
 -- ----------------------------------------------------------------------------
 DELETE FROM users WHERE email IN (
-    'demo@petplanet.com', 'partner@petplanet.com', 'admin@petplanet.com',
-    'review1@petplanet.com', 'review2@petplanet.com', 'review3@petplanet.com',
-    'user1@petplanet.com', 'business1@petplanet.com');
+    'demo@petplanet.kr', 'partner@petplanet.kr', 'admin@petplanet.kr',
+    'review1@petplanet.kr', 'review2@petplanet.kr', 'review3@petplanet.kr',
+    -- schema_full.sql 의 옛 샘플 회원 (@petplanet.com) 도 정리
+    'user1@petplanet.com', 'business1@petplanet.com', 'admin@petplanet.com');
 
 -- 병원·호텔: 이 파일과 schema_full 샘플만 (이름 + 주소로 골라서, 공공데이터 업체는 건드리지 않음)
 DELETE FROM hospitals WHERE (name, address) IN (
@@ -48,16 +49,16 @@ DELETE FROM product_categories WHERE category_id > 0;
 -- ----------------------------------------------------------------------------
 -- 1. 계정 · 반려동물
 -- ----------------------------------------------------------------------------
-INSERT INTO users (email, password, name, role) VALUES ('demo@petplanet.com', '{plain}petplanet123!', '김펫러버', 'USER');
+INSERT INTO users (email, password, name, role) VALUES ('demo@petplanet.kr', '{plain}petplanet123!', '김펫러버', 'USER');
 SET @demo := LAST_INSERT_ID();
-INSERT INTO users (email, password, name, role) VALUES ('partner@petplanet.com', '{plain}petplanet123!', '홍대사장', 'BUSINESS');
+INSERT INTO users (email, password, name, role) VALUES ('partner@petplanet.kr', '{plain}petplanet123!', '홍대사장', 'BUSINESS');
 SET @partner := LAST_INSERT_ID();
-INSERT INTO users (email, password, name, role) VALUES ('admin@petplanet.com', '{plain}petplanet123!', '관리자', 'ADMIN');
-INSERT INTO users (email, password, name, role) VALUES ('review1@petplanet.com', '{plain}petplanet123!', '콩이맘', 'USER');
+INSERT INTO users (email, password, name, role) VALUES ('admin@petplanet.kr', '{plain}petplanet123!', '관리자', 'ADMIN');
+INSERT INTO users (email, password, name, role) VALUES ('review1@petplanet.kr', '{plain}petplanet123!', '콩이맘', 'USER');
 SET @r1 := LAST_INSERT_ID();
-INSERT INTO users (email, password, name, role) VALUES ('review2@petplanet.com', '{plain}petplanet123!', '보리아빠', 'USER');
+INSERT INTO users (email, password, name, role) VALUES ('review2@petplanet.kr', '{plain}petplanet123!', '보리아빠', 'USER');
 SET @r2 := LAST_INSERT_ID();
-INSERT INTO users (email, password, name, role) VALUES ('review3@petplanet.com', '{plain}petplanet123!', '모카언니', 'USER');
+INSERT INTO users (email, password, name, role) VALUES ('review3@petplanet.kr', '{plain}petplanet123!', '모카언니', 'USER');
 SET @r3 := LAST_INSERT_ID();
 
 INSERT INTO pets (user_id, name, breed, weight, gender, is_neutered) VALUES (@demo, '콩이', '푸들', 3.2, 'FEMALE', TRUE);
