@@ -209,3 +209,14 @@ SELECT
   (SELECT COUNT(*) FROM reviews         WHERE user_id = :me) AS review_count,
   (SELECT COUNT(*) FROM place_bookmarks WHERE user_id = :me) AS bookmark_count;
 ```
+
+## 8. 구현 메모 (11/24 백엔드 `backend/`)
+
+명세와 목 서버 응답 모양 그대로 구현했고, 아래만 더하거나 정했어요.
+
+- 회원가입 반려동물은 **1~5마리** (0마리면 `400`). 검증 규칙은 FE `utils/validators.js` 와 같아요.
+- 비밀번호 찾기: 메일 서버가 없어서 임시 비밀번호를 **서버 로그**에 남겨요. `petplanet.demo-mode: true` 면 응답에 `temporaryPassword` 도 넣어요.
+- `GET /places` 는 목 서버처럼 `lines`(호선 OR), `keyword`, `sort=rating` 도 받아요. 반경은 최대 3km.
+- 리뷰 응답에 `petWeight`, `visitDate`(병원 리뷰 — 그 병원 이용완료 예약 날짜), `targetName` 을 더했어요.
+- `GET /reviews/eligibility?targetType=&targetId=` → `{ allowed, alreadyReviewed, reason }` (리뷰 쓰기 버튼 표시용)
+- 리뷰 작성 시 `petId` 를 보낼 수 있어요 (없으면 병원 리뷰는 이용완료 예약의 반려동물, 그 외는 대표 반려동물로 표시).

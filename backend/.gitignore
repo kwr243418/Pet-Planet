@@ -1,0 +1,13 @@
+.gradle/
+build/
+out/
+bin/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# DB 접속 정보 — 예시 파일(application-local.yml.example)만 커밋
+src/main/resources/application-local.yml
+application-local.yml
+.env

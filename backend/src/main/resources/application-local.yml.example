@@ -1,0 +1,7 @@
+# 이 파일을 같은 폴더에 application-local.yml 로 복사해서 내 DB 정보를 넣어요. (application-local.yml 은 커밋되지 않아요)
+#   cp src/main/resources/application-local.yml.example src/main/resources/application-local.yml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/petplanet?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
+    username: root
+    password: 내_비밀번호
