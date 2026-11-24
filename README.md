@@ -77,7 +77,7 @@ npm run dev
 | FE2 | S04-0·S04·S05·S06·S07 + 마이페이지 예약·주문 칸 — **API 연결 완료** (`frontend/src/pages/fe2/`) |
 | BE1 | 회원·반려동물·역·장소(다중 조건 검색)·찜·리뷰 API 구현 (`backend/`) |
 | BE2 | 병원·호텔 예약(시간 충돌·체중 검증·기간 겹침), 상품·장바구니·주문(트랜잭션·재고) API, 시연 시드, 공공데이터 로더 |
-| 확인 필요 | 실제 MySQL + `./gradlew bootRun` 으로 끝까지 돌려 보기 (작성 환경에서 MySQL 접속이 안 돼서 SQL·빌드는 정적 검증만 함) → [07 체크리스트](docs/07_DEMO_SCENARIO_TEST.md) |
+| 확인 필요 | 실제 MySQL + `./gradlew bootRun` 으로 끝까지 돌려 보기 (빌드·테스트는 통과: `./gradlew test`, `npm run build`, 단위 테스트 23개 — 11/24) → [07 체크리스트](docs/07_DEMO_SCENARIO_TEST.md) |
 
 ## 팀 규칙 한 줄 요약
 
