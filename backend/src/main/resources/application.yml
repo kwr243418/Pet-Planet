@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: petplanet
+  profiles:
+    active: local   # src/main/resources/application-local.yml (커밋 안 함) 에 내 DB 정보를 넣어요
+  datasource:
+    # 환경변수로도 줄 수 있어요: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:petplanet}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  jackson:
+    time-zone: Asia/Seoul
+  sql:
+    init:
+      mode: never   # 스키마·시드는 db/*.sql 을 직접 실행해요
+
+petplanet:
+  jwt:
+    secret: ${JWT_SECRET:petplanet-local-dev-secret-please-change-0123456789}
+    expires-hours: 24
+  # 시연용: true 면 예약·주문을 한 본인이 상태를 한 단계씩 올릴 수 있어요 (승인 → 이용완료, 배송 단계).
+  # 실제 서비스라면 false — 병원·호텔 사업자(BUSINESS)나 관리자(ADMIN)만 바꿀 수 있어요.
+  demo-mode: true
+  cors-origins: http://localhost:5173
+
+logging:
+  level:
+    com.petplanet: INFO
