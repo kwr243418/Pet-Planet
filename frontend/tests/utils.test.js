@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { haversineKm, offsetMeters, walkingMinutes } from '../src/utils/geo.js';
 import { validateEmail, validatePassword, validateWeight, validateReview, validateName } from '../src/utils/validators.js';
-import { canBring, sizeFromWeight, formatDistance, formatKm, maskEmail } from '../src/utils/format.js';
+import { canBring, sizeFromWeight, formatDistance, formatKm, maskEmail, formatPhone } from '../src/utils/format.js';
 
 test('하버사인: 강남역 ↔ 역삼역 약 0.8km', () => {
   const d = haversineKm(37.4979, 127.0276, 37.5006, 127.0364);
@@ -57,4 +57,16 @@ test('포맷터', () => {
   assert.equal(formatKm(0.296), '0.3km');
   assert.equal(formatKm(0.957), '1.0km');
   assert.equal(formatKm(0.02), '0.1km');
+});
+
+test('formatPhone: 숫자만 쳐도 하이픈 자동', () => {
+  assert.equal(formatPhone('010'), '010');
+  assert.equal(formatPhone('0101'), '010-1');
+  assert.equal(formatPhone('0101234'), '010-1234');
+  assert.equal(formatPhone('01012345'), '010-1234-5');
+  assert.equal(formatPhone('01012345678'), '010-1234-5678');
+  assert.equal(formatPhone('010-1234-56789'), '010-1234-5678'); // 11자리 넘으면 자름
+  assert.equal(formatPhone('010 1234 5678'), '010-1234-5678'); // 붙여넣기
+  assert.equal(formatPhone('0111234567', { final: true }), '011-123-4567');
+  assert.equal(formatPhone('abc'), '');
 });

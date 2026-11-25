@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { cartApi, orderApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
+import { formatPhone } from '../../utils/format.js';
 import './fe2.css';
 
 const CATEGORY_WORD = { 1: 'FOOD', 2: 'SNACK', 3: 'CARE', 4: 'GOODS' };
@@ -42,6 +43,9 @@ export default function CartOrderPage() {
   const [paying, setPaying] = useState(false);
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  // 연락처: 숫자만 쳐도 010-1234-5678로 하이픈을 자동으로 넣어요
+  const setPhone = (e) => setForm((f) => ({ ...f, receiverPhone: formatPhone(e.target.value) }));
+  const finishPhone = () => setForm((f) => ({ ...f, receiverPhone: formatPhone(f.receiverPhone, { final: true }) }));
 
   const changeQty = async (item, delta) => {
     const next = item.quantity + delta;
@@ -85,7 +89,7 @@ export default function CartOrderPage() {
     if (paying) return;
     const next = {};
     if (form.receiverName.trim().length < 2) next.receiverName = '받는 분 이름을 2자 이상 입력해 주세요.';
-    if (!PHONE_RE.test(form.receiverPhone.trim())) next.receiverPhone = '연락처를 010-0000-0000 모양으로 입력해 주세요.';
+    if (!PHONE_RE.test(formatPhone(form.receiverPhone, { final: true }))) next.receiverPhone = '휴대폰 번호 10~11자리를 입력해 주세요.';
     if (!form.address.trim()) next.address = '배송 주소를 입력해 주세요.';
     setErrors(next);
     if (Object.keys(next).length) {
@@ -94,7 +98,7 @@ export default function CartOrderPage() {
     }
     setPaying(true);
     try {
-      setDone(await orderApi.create({ receiverName: form.receiverName.trim(), receiverPhone: form.receiverPhone.trim(), address: form.address.trim() }));
+      setDone(await orderApi.create({ receiverName: form.receiverName.trim(), receiverPhone: formatPhone(form.receiverPhone, { final: true }), address: form.address.trim() }));
     } catch (err) {
       if (err.fieldErrors?.length) {
         setErrors(Object.fromEntries(err.fieldErrors.map((f) => [f.field, f.message])));
@@ -237,7 +241,18 @@ export default function CartOrderPage() {
             <section className="card fe2-section">
               <h2 className="fe2-step-title">배송 정보</h2>
               <Field label="받는 분" placeholder="이름" value={form.receiverName} onChange={setField('receiverName')} error={errors.receiverName} />
-              <Field label="연락처" placeholder="010-0000-0000" inputMode="tel" value={form.receiverPhone} onChange={setField('receiverPhone')} error={errors.receiverPhone} />
+              <Field
+                label="연락처"
+                placeholder="숫자만 입력해 주세요 (01012345678)"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                maxLength={13}
+                value={form.receiverPhone}
+                onChange={setPhone}
+                onBlur={finishPhone}
+                error={errors.receiverPhone}
+              />
               <Field
                 label="주소"
                 placeholder="배송 주소"

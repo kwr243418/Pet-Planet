@@ -65,3 +65,15 @@ export function maskEmail(email = '') {
   if (!domain) return email;
   return `${id.slice(0, 2)}${'*'.repeat(Math.max(1, id.length - 2))}@${domain}`;
 }
+
+/**
+ * 휴대폰 번호 자동 하이픈: 숫자만 남기고 010-1234-5678 모양으로 (최대 11자리)
+ * 입력 중엔 3-4-4로 끊고, 다 입력한 10자리(011-123-4567 같은 옛 번호)는 final=true일 때 3-3-4로
+ */
+export function formatPhone(value, { final = false } = {}) {
+  const d = String(value ?? '').replace(/\D/g, '').slice(0, 11);
+  if (d.length < 4) return d;
+  if (final && d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length < 8) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
