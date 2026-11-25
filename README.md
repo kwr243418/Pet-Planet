@@ -41,7 +41,7 @@ cd frontend
 npm install
 cp .env.example .env.local      # VITE_USE_MOCK=true
 npm run dev                     # http://localhost:5173  데모 계정 demo@petplanet.kr / petplanet123!
-npm run test:unit               # node:test 23개
+npm run test:unit               # node:test 35개
 ```
 
 ### B. 실제 DB + 백엔드 + 프론트
@@ -52,8 +52,9 @@ mysql -u root -p < db/schema_full.sql            # ⚠️ 테이블을 DROP 후 
 mysql -u root -p < db/patch_v2_proposed.sql
 mysql -u root -p < db/patch_be2_public_data.sql
 mysql -u root -p < db/patch_bus_transit.sql      # 지하철 테이블 삭제 · 버스 테이블 · 지역/정류장 칼럼
-mysql -u root -p < db/seed_dev_places.sql        # 장소 (서울 시연용)
-mysql -u root -p < db/seed_demo.sql              # 시연 계정·제휴 병원/호텔·상품·예약·주문·리뷰
+mysql -u root -p < db/patch_facility_bookmarks.sql  # 병원 · 호텔 찜
+mysql -u root -p < db/seed_dev_places.sql        # 장소 (서울 개발용)
+mysql -u root -p < db/seed_demo.sql              # 시연 계정·제휴 병원/호텔(목포, 가상)·상품·예약·주문·리뷰·찜
 # (선택) 전국 동물병원·펫호텔·동반 장소·버스 정류장 공공데이터 → db/loader/README.md
 
 # 2) 백엔드 (http://localhost:8080)
@@ -68,18 +69,18 @@ npm run dev
 ```
 
 시연 계정 (seed_demo.sql, 비밀번호 모두 `petplanet123!`) — `demo@petplanet.kr` 일반 · `partner@petplanet.kr` 사업자 · `admin@petplanet.kr` 관리자 (목 서버와 같은 데모 계정).
-원격 DB는 `mysql -h 주소 -P 포트 -u 계정 -p < …` 로 같은 순서. 자세한 설명·문제 해결: [backend/README.md](backend/README.md)
+원격 DB는 `mysql -h 주소 -P 포트 -u 계정 -p < …` 로 같은 순서. **팀 공용 DB로 백엔드 켜기 · 비밀번호 구분 · 자주 나는 오류**: [backend/README.md](backend/README.md)
 
-## 지금 상태 (11/24)
+## 지금 상태 (11/25)
 
 | 파트 | 상태 |
 |---|---|
 | 공통 | 디자인 시스템·헤더/푸터·NOW STATION·API 클라이언트·로그인 상태 관리 완료 |
 | FE1 | S01·S02·S03·S08·S09 + 로그인·비밀번호 찾기·반려동물 추가/수정 — 완료 (목 서버·실제 API 같은 코드) |
 | FE2 | S04-0·S04·S05·S06·S07 + 마이페이지 예약·주문 칸 — **API 연결 완료** (`frontend/src/pages/fe2/`) |
-| BE1 | 회원·반려동물·역·장소(다중 조건 검색)·찜·리뷰 API 구현 (`backend/`) |
-| BE2 | 병원·호텔 예약(시간 충돌·체중 검증·기간 겹침), 상품·장바구니·주문(트랜잭션·재고) API, 시연 시드, 공공데이터 로더 |
-| 확인 필요 | 실제 MySQL + `./gradlew bootRun` 으로 끝까지 돌려 보기 (빌드·테스트는 통과: `./gradlew test`, `npm run build`, 단위 테스트 23개 — 11/24) → [07 체크리스트](docs/07_DEMO_SCENARIO_TEST.md) |
+| BE1 | 회원·반려동물·장소(다중 조건 검색)·찜·리뷰 API 구현 (`backend/`) |
+| BE2 | 병원·호텔 예약(시간 충돌·체중 검증·기간 겹침), 상품·장바구니·주문(트랜잭션·재고) API, 시연 시드, 공공데이터 로더, 버스 · 지역 탐색(11/25), 병원·호텔 찜(11/25) |
+| 확인 | 로컬 MySQL · 팀 공용 DB 둘 다 `./gradlew bootRun` + 로그인 · 탐색 · 찜 확인 (11/25). 팀 DB 에 버스 정류장 22만 곳 · 공공데이터 병원/호텔/장소 · 목포 시연 데이터 적재 완료 → [07 체크리스트](docs/07_DEMO_SCENARIO_TEST.md) |
 
 ## 팀 규칙 한 줄 요약
 
