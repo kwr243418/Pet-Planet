@@ -236,7 +236,7 @@ export default function Explore() {
             {!query && (
               <EmptyState
                 title={mode === 'me' ? '출발점을 먼저 골라 주세요' : '지역을 먼저 골라 주세요'}
-                desc={mode === 'me' ? '현재 위치를 찾거나 시연 위치를 고르면 주변을 보여 드려요.' : '시 · 도와 시 · 군 · 구를 고르면 그 지역의 장소를 보여 드려요.'}
+                desc={mode === 'me' ? '현재 위치를 찾으면 주변을 보여 드려요. 위치 권한이 꺼져 있으면 "지역별"로 찾아보세요.' : '시 · 도와 시 · 군 · 구를 고르면 그 지역의 장소를 보여 드려요.'}
               />
             )}
             {result.error && <ErrorState error={result.error} onRetry={result.reload} />}

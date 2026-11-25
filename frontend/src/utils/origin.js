@@ -40,7 +40,7 @@ export function locateMe() {
       (err) =>
         reject(
           new Error(
-            err.code === err.PERMISSION_DENIED ? '위치 권한이 꺼져 있어요. 브라우저 주소창의 위치 권한을 허용하거나 시연 위치를 골라 주세요.' : '현재 위치를 찾지 못했어요. 시연 위치를 골라 주세요.',
+            err.code === err.PERMISSION_DENIED ? '위치 권한이 꺼져 있어요. 브라우저 주소창의 위치 권한을 허용하거나 "지역별" 탐색을 써 주세요.' : '현재 위치를 찾지 못했어요. "지역별" 탐색을 써 주세요.',
           ),
         ),
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },

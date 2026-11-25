@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { formatKm } from '../../utils/format.js';
-import { distanceFrom, formatMinutes, kakaoDirectionsUrl, PRESET_ORIGINS, saveOrigin, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
+import { distanceFrom, formatMinutes, kakaoDirectionsUrl, locateMe, saveOrigin, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
 import { petBusAdvice } from '../../utils/transit.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -19,9 +19,20 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
   const { primaryPet } = useAuth();
   const busAdvice = petBusAdvice(primaryPet?.weight);
 
-  const pick = (o) => {
-    saveOrigin(o);
-    setOrigin(o);
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState('');
+  const locate = async () => {
+    setLocating(true);
+    setLocateError('');
+    try {
+      const o = await locateMe();
+      saveOrigin(o);
+      setOrigin(o);
+    } catch (e) {
+      setLocateError(e.message);
+    } finally {
+      setLocating(false);
+    }
   };
 
   return (
@@ -34,7 +45,7 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
               <b>{origin.label}</b>에서 직선거리 {formatKm(km)}
             </>
           ) : (
-            '출발점을 고르면 이동 시간을 어림해 드려요'
+            '현재 위치를 찾으면 이동 시간을 어림해 드려요'
           )}
         </p>
       </div>
@@ -48,11 +59,10 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
       </div>
       {!origin && (
         <div className="route-guide__presets">
-          {PRESET_ORIGINS.map((p) => (
-            <button key={p.key} type="button" className="btn btn--line btn--sm" onClick={() => pick(p)}>
-              {p.label}에서 출발
-            </button>
-          ))}
+          <button type="button" className="btn btn--line btn--sm" disabled={locating} onClick={locate}>
+            {locating ? '위치 찾는 중…' : '현재 위치에서 출발'}
+          </button>
+          {locateError && <p className="field__error">{locateError}</p>}
         </div>
       )}
       {modeKey === 'bus' && (

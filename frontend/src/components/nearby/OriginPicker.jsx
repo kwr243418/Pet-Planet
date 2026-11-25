@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Button } from '../common/ui.jsx';
-import { PRESET_ORIGINS, locateMe } from '../../utils/origin.js';
+import { locateMe } from '../../utils/origin.js';
 
-/** 내 근처 탐색의 출발점: 현재 위치 찾기 · 시연 위치 */
+/** 내 근처 탐색의 출발점: 현재 위치 찾기 */
 export default function OriginPicker({ origin, onOriginChange }) {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
@@ -26,18 +26,13 @@ export default function OriginPicker({ origin, onOriginChange }) {
         <Button variant="primary" size="md" loading={locating} onClick={locate}>
           현재 위치 찾기
         </Button>
-        {PRESET_ORIGINS.map((p) => (
-          <Button key={p.key} variant="outline" size="md" aria-pressed={origin?.label === p.label} onClick={() => onOriginChange(p)}>
-            {p.label} 기준
-          </Button>
-        ))}
         <p className="origin-picker__now" aria-live="polite">
           {origin ? (
             <>
               출발점 <b>{origin.label}</b>
             </>
           ) : (
-            '현재 위치를 찾거나 시연 위치를 골라 주세요'
+            '현재 위치를 찾아 주세요'
           )}
         </p>
         {error && (
