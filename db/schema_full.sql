@@ -1,7 +1,8 @@
 -- ============================================================================
--- Pet-Planet Database Schema - Full (All 19 Tables with Seed Data)
+-- Pet-Planet Database Schema - Full (All 21 Tables with Seed Data)
 -- 2026-11-25: 지하철(stations · place_stations) → 버스(bus_stops · bus_routes · bus_route_stops)로 교체 (docs/09_BUS_TRANSIT.md)
 --             지역(sido · sigungu) · 대중교통 접근성 칼럼은 db/patch_bus_transit.sql 에서 추가해요
+-- 2026-11-25: 동물병원 · 펫호텔 찜(hospital_bookmarks · hotel_bookmarks) 추가 (db/patch_facility_bookmarks.sql)
 -- MySQL 8.0 / MariaDB 10.5+ Compatible
 -- ============================================================================
 -- Database: petplanet
@@ -22,6 +23,8 @@ SET foreign_key_checks = 0;
 -- Respecting foreign key dependencies for safe deletion
 
 DROP TABLE IF EXISTS place_bookmarks;
+DROP TABLE IF EXISTS hospital_bookmarks;
+DROP TABLE IF EXISTS hotel_bookmarks;
 DROP TABLE IF EXISTS place_stations;   -- 예전 지하철 매핑 (2026-11-25 삭제, 남아 있으면 지워요)
 DROP TABLE IF EXISTS bus_route_stops;
 DROP TABLE IF EXISTS hotel_reservations;
@@ -264,6 +267,39 @@ CREATE TABLE place_bookmarks (
     INDEX idx_place_id (place_id),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='장소 북마크';
+
+-- 동물병원 · 펫호텔 찜 (N:M, place_bookmarks 와 같은 구조 · 마이페이지 "찜한 병원 · 호텔")
+CREATE TABLE hospital_bookmarks (
+    bookmark_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '찜 ID',
+    user_id BIGINT NOT NULL COMMENT '사용자 ID',
+    hospital_id BIGINT NOT NULL COMMENT '동물병원 ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '찜한 일시',
+
+    CONSTRAINT fk_hospital_bookmarks_user_id FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_hospital_bookmarks_hospital_id FOREIGN KEY (hospital_id)
+        REFERENCES hospitals(hospital_id) ON DELETE CASCADE ON UPDATE CASCADE,
+
+    UNIQUE KEY uk_user_hospital (user_id, hospital_id),
+    INDEX idx_hospital_bookmarks_hospital (hospital_id),
+    INDEX idx_hospital_bookmarks_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='동물병원 찜';
+
+CREATE TABLE hotel_bookmarks (
+    bookmark_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '찜 ID',
+    user_id BIGINT NOT NULL COMMENT '사용자 ID',
+    hotel_id BIGINT NOT NULL COMMENT '펫호텔 ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '찜한 일시',
+
+    CONSTRAINT fk_hotel_bookmarks_user_id FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_hotel_bookmarks_hotel_id FOREIGN KEY (hotel_id)
+        REFERENCES pet_hotels(hotel_id) ON DELETE CASCADE ON UPDATE CASCADE,
+
+    UNIQUE KEY uk_user_hotel (user_id, hotel_id),
+    INDEX idx_hotel_bookmarks_hotel (hotel_id),
+    INDEX idx_hotel_bookmarks_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='펫호텔 찜';
 
 -- ============================================================================
 -- PET HOTEL (Continued) - Part 2: Child Tables

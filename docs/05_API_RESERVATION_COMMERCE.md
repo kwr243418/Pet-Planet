@@ -175,6 +175,8 @@ ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);
 | 예약 현황 | `GET /users/me/hospital-reservations` + `GET /users/me/hotel-reservations` → 상태 칩, [취소] / [입실 안내] |
 | 주문 내역 | `GET /users/me/orders` → 배송 단계 노선, [주문 상세] / [주문 취소] |
 | 탈퇴 가능 여부 | `DELETE /users/me` 가 진행 중 예약(`PENDING`·`CONFIRMED`)·배송 전 주문(`ORDERED`·`PREPARING`)이 있으면 `409 WITHDRAW_BLOCKED` |
+| 최근 예약한 병원 · 호텔 🆕 | `GET /users/me/recent-facilities?limit=6` — 아래 §9 |
+| 찜한 병원 · 호텔 🆕 | `GET /users/me/facility-bookmarks` — 아래 §9 |
 
 ## 8. 구현에서 더한 것 (11/24)
 
@@ -193,5 +195,25 @@ ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);
 | `POST /orders` | 장바구니가 비면 `400 CART_EMPTY`. 응답·목록에 `items[]`(`reviewed` 포함), 받는 분 정보 |
 | `PATCH /orders/{id}/status` | 한 단계씩만 (ORDERED → PREPARING → SHIPPING → DELIVERED). `ADMIN` 또는 시연 모드의 주문한 본인 |
 | 배송비 | 장바구니에 상품이 있으면 3,000원 |
+
+## 9. 병원 · 호텔 고르는 흐름 + 찜 (11/25) 🆕
+
+병원 · 호텔은 **주변 탐색에서 찾고 → 상세 → 예약** 으로 이어져요. 예약 화면에서는 병원 · 호텔을 다시 고르지 않아요.
+
+| 화면 | 동작 |
+|---|---|
+| 상단 메뉴 "병원 · 호텔"(예약선) | `/explore?tab=hospital&book=1` — 주변 탐색 동물병원 탭 + **예약 가능만**(병원 `partner=true`, 호텔 `bookable=true`). 칩을 끄면 공공데이터 병원 · 호텔까지 |
+| 예약 화면 | `/reservations/hospital?hospitalId=` · `/reservations/hotel?hotelId=` — 고르고 들어온 곳 요약 + "다른 병원 찾기"(→ 예약선). id 없이 들어오면 예약선으로 보내요. 비제휴 병원 · 객실 없는 호텔이면 안내 |
+| 마이페이지 | 최근 예약한 병원 · 호텔 [다시 예약], 찜한 병원 · 호텔 [예약하기] [찜 해제] |
+
+| API | 설명 |
+|---|---|
+| `GET /hospitals/{id}/bookmark` · `GET /pet-hotels/{id}/bookmark` | 로그인 필요. `{ kind, id, bookmarked }` |
+| `POST …/bookmark` | 찜. 이미 찜했으면 `409 DUPLICATE_BOOKMARK` (UNIQUE(user_id, 대상 ID)), 없는 곳이면 `404 HOSPITAL_NOT_FOUND` / `HOTEL_NOT_FOUND` |
+| `DELETE …/bookmark` | 찜 해제 (없어도 200) |
+| `GET /users/me/facility-bookmarks` | `[{ kind, id, name, address, sido, sigungu, reservable, busAccess, bookmarkedAt }]` 최근에 찜한 순. `hospital_bookmarks` ∪ `hotel_bookmarks` (UNION ALL) |
+| `GET /users/me/recent-facilities?limit=6` | `[{ kind, id, name, sido, sigungu, reservable, lastAt, count, upcoming, bookmarked }]` — 취소 제외 예약을 병원 · 호텔별로 `GROUP BY` (`COUNT`, `MAX`), 다가오는 예약이 있는 곳 먼저. 호텔은 `hotel_reservations → room_types → pet_hotels` 로 묶어요 |
+
+테이블: `hospital_bookmarks`, `hotel_bookmarks` (`db/patch_facility_bookmarks.sql`, `place_bookmarks` 와 같은 N:M 구조)
 
 트랜잭션·잠금 설명과 SQL 전문: [08_SQL_QUERIES](08_SQL_QUERIES.md)

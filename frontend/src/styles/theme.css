@@ -2249,3 +2249,38 @@ html.fp-snap {
     animation: none;
   }
 }
+
+/* ---------- 주변 탐색: "예약 가능만" 칩 (상단 메뉴 "병원 · 호텔" = 예약선) ---------- */
+.reserve-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 14px 0 4px;
+}
+.reserve-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong, #cfc6b8);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  cursor: pointer;
+}
+.reserve-chip.is-on {
+  background: var(--night);
+  color: var(--on-night);
+  box-shadow: none;
+}
+.reserve-chip span {
+  opacity: 0.7;
+}
+.reserve-chip-row__hint {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}

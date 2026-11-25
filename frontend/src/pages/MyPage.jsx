@@ -16,6 +16,8 @@ import { GENDER_LABEL, ROLE_LABEL } from '../utils/format.js';
 import { validateName } from '../utils/validators.js';
 import MyReservations from './fe2/MyReservations.jsx';
 import MyOrders from './fe2/MyOrders.jsx';
+import MyFacilities from './fe2/MyFacilities.jsx';
+import { reserveExploreUrl } from '../utils/reserve.js';
 
 const MY_STEPS = ['회원가입', '반려동물 등록', '마이페이지', '통합 리뷰'];
 
@@ -103,6 +105,9 @@ export default function MyPage() {
           </div>
         </section>
 
+        {/* 내 병원 · 호텔: 최근 예약 + 찜 → 바로 다시 예약 */}
+        <MyFacilities refreshKey={activity} />
+
         {/* 예약 · 주문 (FE2 연결 영역) */}
         <section className="section two-col">
           <div className="panel card" id="reservations">
@@ -110,7 +115,7 @@ export default function MyPage() {
               <h3>
                 <LetterBadge letter="R" size="md" tone="mint" /> 예약 현황
               </h3>
-              <Link to="/reservations/hospital" className="text-link">
+              <Link to={reserveExploreUrl()} className="text-link">
                 새 예약
               </Link>
             </div>

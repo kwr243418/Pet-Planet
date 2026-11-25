@@ -9,7 +9,7 @@ import { HOSPITALS, PET_HOTELS, PRODUCTS, commerceSeed } from './seedCommerce.js
 import { accessFields, busStopById, byStop, matchRegion as matchRegionWith, mockArrivals, originOf as originWith, stopsNear } from './seedTransit.js';
 import { NO_MATCH, commerceRoutes, reviewNotAllowedReason, visitDateOf } from './mockCommerce.js';
 
-const DB_KEY = 'pp-mock-db-v4'; // v4: 11/25 상품 이름(대중교통용 이동장) · 버스 데이터
+const DB_KEY = 'pp-mock-db-v5'; // v5: 11/25 병원 · 호텔 찜
 export const DEFAULT_RADIUS_KM = 1;
 export const MAX_RADIUS_KM = 5;
 
@@ -32,9 +32,11 @@ function freshDb() {
     products: structuredClone(PRODUCTS),
     hospitalReservations: commerce.hospitalReservations,
     hotelReservations: commerce.hotelReservations,
+    hospitalBookmarks: commerce.hospitalBookmarks,
+    hotelBookmarks: commerce.hotelBookmarks,
     orders: commerce.orders,
     cart: [],
-    seq: { user: 100, pet: 100, review: 6000, bookmark: 100, hospitalReservation: 100, hotelReservation: 100, order: 100, cart: 100 },
+    seq: { user: 100, pet: 100, review: 6000, bookmark: 100, hospitalReservation: 100, hotelReservation: 100, facilityBookmark: 100, order: 100, cart: 100 },
   };
 }
 

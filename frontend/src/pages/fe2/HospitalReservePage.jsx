@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
-import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Spinner } from '../../components/common/ui.jsx';
+import { Button, EmptyState, ErrorState, PageLoader, Spinner } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { GENDER_LABEL } from '../../utils/format.js';
-import ReserveTabs from './ReserveTabs.jsx';
+import SelectedFacility from './SelectedFacility.jsx';
+import { RESERVE_STEPS, reserveExploreUrl } from '../../utils/reserve.js';
 import { hospitalApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
@@ -27,14 +28,18 @@ function StatusRoute({ current = 0 }) {
   );
 }
 
-/** S04 동물병원 진료 예약 — GET /api/hospitals?partner=true, /available-times, POST /api/hospital-reservations */
+/**
+ * S04 동물병원 진료 예약 — GET /api/hospitals/{id}, /available-times, POST /api/hospital-reservations
+ * 병원은 주변 탐색(예약 가능만) · 병원 상세 · 마이페이지(최근 예약 · 찜)에서 골라 ?hospitalId= 로 들어와요.
+ * hospitalId 없이 들어오면 주변 탐색의 예약 가능한 동물병원 목록으로 보내요.
+ */
 export default function HospitalReservePage() {
   usePageTitle('동물병원 진료 예약');
   const toast = useToast();
   const { isLoggedIn, booting, pets } = useAuth();
   const [params] = useSearchParams();
+  const location = useLocation();
   const wanted = Number(params.get('hospitalId')) || null;
-  const [hospitalId, setHospitalId] = useState(wanted);
   const [petId, setPetId] = useState(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -42,20 +47,8 @@ export default function HospitalReservePage() {
   const [done, setDone] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 제휴 병원 목록 (+ 상세 화면에서 넘어온 병원이 목록에 없으면 따로 불러와 맨 앞에)
-  const hospitalsQ = useAsync(async () => {
-    const { content } = await hospitalApi.list({ partner: true, size: 20 });
-    if (wanted && !content.some((h) => h.hospitalId === wanted)) {
-      try {
-        content.unshift(await hospitalApi.get(wanted));
-      } catch {
-        /* 없는 병원이면 무시 */
-      }
-    }
-    return content;
-  }, [wanted]);
-  const hospitals = hospitalsQ.data ?? [];
-  const hospital = hospitals.find((h) => h.hospitalId === hospitalId) ?? hospitals[0];
+  const hospitalQ = useAsync(() => hospitalApi.get(wanted), [wanted], { enabled: !!wanted });
+  const hospital = hospitalQ.data;
   const pet = pets.find((p) => p.petId === petId);
   const slotsQ = useAsync(() => hospitalApi.availableTimes(hospital.hospitalId, date), [hospital?.hospitalId, date], { enabled: !!hospital && !!date, initial: null });
   const slots = date ? slotsQ.data?.slots ?? [] : [];
@@ -96,19 +89,19 @@ export default function HospitalReservePage() {
   const hero = (
     <>
       <PageHero line="R" en="CLINIC" title={'제휴 동물병원\n진료 예약'} desc={'반려동물과 원하는 시간을 고르면 병원으로 바로 신청돼요.\n병원이 승인하면 예약이 확정됩니다.'} art={<StationBuildings />} />
-      <NowStation steps={['예약 선택', '병원 선택', '반려동물 · 일시', '신청 완료']} current={done ? 3 : 2} />
+      <NowStation steps={RESERVE_STEPS.hospital} current={done ? 3 : 2} />
     </>
   );
 
-  if (booting || (hospitalsQ.loading && !hospitalsQ.data)) return <PageLoader />;
+  if (!wanted) return <Navigate to={reserveExploreUrl('hospital')} replace />;
+  if (booting || (hospitalQ.loading && !hospitalQ.data)) return <PageLoader />;
 
   if (!isLoggedIn) {
     return (
       <>
         {hero}
         <div className="container fe2">
-          <ReserveTabs />
-          <EmptyState title="로그인이 필요해요" desc="내 반려동물을 골라 예약하려면 먼저 로그인해 주세요." action={<Link to="/login?redirect=%2Freservations%2Fhospital" className="btn btn--primary btn--md">로그인하기</Link>} />
+          <EmptyState title="로그인이 필요해요" desc="내 반려동물을 골라 예약하려면 먼저 로그인해 주세요." action={<Link to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} className="btn btn--primary btn--md">로그인하기</Link>} />
         </div>
       </>
     );
@@ -145,45 +138,46 @@ export default function HospitalReservePage() {
     );
   }
 
-  if (hospitalsQ.error || !hospital) {
+  if (hospitalQ.error || !hospital || !hospital.partner) {
+    const findAction = (
+      <Link to={reserveExploreUrl('hospital')} className="btn btn--primary btn--md">
+        예약 가능한 병원 찾기
+      </Link>
+    );
     return (
       <>
         {hero}
         <div className="container fe2">
-          <ReserveTabs />
-          {hospitalsQ.error ? <ErrorState error={hospitalsQ.error} onRetry={hospitalsQ.reload} /> : <EmptyState title="예약할 수 있는 제휴 병원이 없어요" desc="db/seed_demo.sql 로 시연용 병원을 넣었는지 확인해 주세요." />}
+          {hospitalQ.error?.status === 404 || !hospital ? (
+            <EmptyState title="병원을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={findAction} />
+          ) : hospitalQ.error ? (
+            <ErrorState error={hospitalQ.error} onRetry={hospitalQ.reload} />
+          ) : (
+            <EmptyState
+              title="이 병원은 펫 플래닛 예약을 받지 않아요"
+              desc={`${hospital.name}은(는) 공공데이터로 등록된 병원이에요. 전화로 문의하거나 제휴 병원을 찾아 보세요.`}
+              action={findAction}
+            />
+          )}
         </div>
       </>
     );
   }
 
-  const stop = hospital.busAccess;
-
   return (
     <>
       {hero}
       <div className="container fe2">
-        <ReserveTabs />
         <form className="fe2-form" onSubmit={submit} noValidate>
           {/* 1. 병원 */}
           <section className="card fe2-section">
-            <h2 className="fe2-step-title">1. 병원 선택</h2>
-            <OptionGroup
-              label="병원"
-              value={hospital.hospitalId}
-              onChange={(v) => {
-                setHospitalId(v);
-                setTime('');
-              }}
-              options={hospitals.map((h) => ({ value: h.hospitalId, label: h.name }))}
+            <h2 className="fe2-step-title">1. 병원</h2>
+            <SelectedFacility
+              kind="HOSPITAL"
+              facility={hospital}
+              meta={[hospital.operatingHours, hospital.lunchTime && `점심 ${hospital.lunchTime}`, hospital.reviewCount > 0 && `★ ${hospital.avgRating.toFixed(1)} (리뷰 ${hospital.reviewCount})`].filter(Boolean).join(' · ')}
+              detailTo={`/hospitals/${hospital.hospitalId}`}
             />
-            <p className="fe2-note">
-              {[stop?.stopId && `${stop.stopName} 정류장 도보 ${stop.walkMin}분`, hospital.operatingHours, hospital.lunchTime && `점심 ${hospital.lunchTime}`].filter(Boolean).join(' · ')}
-              {'  '}
-              <Link to={`/hospitals/${hospital.hospitalId}`} className="text-link">
-                별점 · 리뷰 보기
-              </Link>
-            </p>
           </section>
 
           {/* 2. 반려동물 */}

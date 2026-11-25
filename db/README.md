@@ -4,10 +4,11 @@
 
 | 파일 | 내용 | 작성 |
 |---|---|---|
-| `schema_full.sql` | 전체 19개 테이블 DDL + 샘플 데이터 (DB를 **새로 만들어요** — 기존 테이블 DROP) | BE1 원본 + 11/25 버스 테이블 |
+| `schema_full.sql` | 전체 21개 테이블 DDL + 샘플 데이터 (DB를 **새로 만들어요** — 기존 테이블 DROP) | BE1 원본 + 11/25 버스 테이블 |
 | `patch_v2_proposed.sql` | 목업 화면에 맞춘 **수정 제안** (번호 = `docs/06_DB_DECISIONS.md` 번호) | FE1 제안 → BE1·BE2 확인 |
 | `patch_be2_public_data.sql` | 공공데이터 적재용 칼럼 (`license_no`, `places.source_key`) | BE2 |
 | `patch_bus_transit.sql` | 지하철 테이블 삭제 · 버스 테이블 · 지역(`sido`,`sigungu`) · 가까운 정류장 칼럼 | BE2 (11/25) |
+| `patch_facility_bookmarks.sql` | 동물병원 · 펫호텔 찜 (`hospital_bookmarks`, `hotel_bookmarks`) | BE2 (11/25) |
 | `seed_dev_places.sql` | 개발용 카테고리 4종 · 서울 가상 장소 32곳 | 프론트 목 서버와 같은 데이터 |
 | `seed_demo.sql` | 시연 계정 · 제휴 병원/호텔 · 상품 · 예약 · 주문 · 리뷰 (가상) | BE2 |
 | `loader/` | 공공데이터 적재기 (병원 · 호텔 · 동반 장소 · 버스 정류장) | BE2 |
@@ -19,12 +20,13 @@ mysql -u root -p < db/schema_full.sql
 mysql -u root -p < db/patch_v2_proposed.sql
 mysql -u root -p < db/patch_be2_public_data.sql
 mysql -u root -p < db/patch_bus_transit.sql
+mysql -u root -p < db/patch_facility_bookmarks.sql
 mysql -u root -p < db/seed_dev_places.sql
 mysql -u root -p < db/seed_demo.sql
 # 공공데이터 → db/loader/README.md
 ```
 MySQL Workbench 라면 파일을 열고 ⚡(Execute) — safe update 모드에서도 돌아가게 `WHERE 키 > 0` 을 붙여 뒀어요.
-이미 쓰던 DB 는 `patch_bus_transit.sql` 만 실행하면 돼요 (ALTER 는 두 번 실행하면 "Duplicate column" — 그 줄만 빼고).
+이미 쓰던 DB 는 `patch_bus_transit.sql` · `patch_facility_bookmarks.sql` 만 실행하면 돼요 (버스 패치의 ALTER 는 두 번 실행하면 "Duplicate column" — 그 줄만 빼고. 찜 패치는 여러 번 실행해도 괜찮아요).
 
 ## 주의
 
@@ -34,6 +36,12 @@ MySQL Workbench 라면 파일을 열고 ⚡(Execute) — safe update 모드에�
 ## 확인용 쿼리
 
 ```sql
+-- 마이페이지 "최근 예약한 병원 · 호텔" (FacilityService.recent 와 같은 집계)
+SELECT h.name, COUNT(*) AS cnt, MAX(hr.reservation_date) AS last_at
+FROM hospital_reservations hr JOIN hospitals h ON h.hospital_id = hr.hospital_id
+WHERE hr.user_id = (SELECT user_id FROM users WHERE email = 'demo@petplanet.kr') AND hr.status <> 'CANCELLED'
+GROUP BY h.hospital_id, h.name ORDER BY last_at DESC;
+
 -- 지역별 장소 수
 SELECT sido, sigungu, COUNT(*) FROM places GROUP BY sido, sigungu ORDER BY sido, sigungu;
 

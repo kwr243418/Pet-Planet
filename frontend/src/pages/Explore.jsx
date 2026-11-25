@@ -13,6 +13,7 @@ import RegionPicker from '../components/transit/RegionPicker.jsx';
 import { HospitalCard, HotelCard } from '../components/nearby/FacilityCards.jsx';
 import { readOrigin, saveOrigin } from '../utils/origin.js';
 import { normalizeSido, regionLabel } from '../utils/region.js';
+import { RESERVE_STEPS } from '../utils/reserve.js';
 
 export const EXPLORE_STEPS = ['출발점 · 지역 선택', '주변 장소 목록', '장소 상세', '관심 장소 찜'];
 const MODES = [
@@ -77,6 +78,8 @@ function useExploreState() {
       me: params.get('lat') && params.get('lng') ? { label: params.get('from') || '내 위치', lat: Number(params.get('lat')), lng: Number(params.get('lng')) } : readOrigin(),
       region: params.get('sido') ? { sido: normalizeSido(params.get('sido')) ?? params.get('sido'), sigungu: params.get('sigungu') || null } : savedRegion,
       tab: TABS.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'place',
+      // 예약 가능만 (상단 메뉴 "병원 · 호텔" = 예약선): 병원은 제휴(partner), 호텔은 객실 등록(bookable)
+      reservable: params.get('book') === '1' && (params.get('tab') === 'hospital' || params.get('tab') === 'hotel'),
       filters: {
         categoryIds: csv(params.get('cat')).map(Number),
         sizes: csv(params.get('sizes')),
@@ -98,6 +101,7 @@ function useExploreState() {
         if (n.region.sigungu) q.sigungu = n.region.sigungu;
       }
       if (n.tab !== 'place') q.tab = n.tab;
+      if (n.tab !== 'place' && n.reservable) q.book = '1';
       if (n.filters.categoryIds.length) q.cat = n.filters.categoryIds.join(',');
       if (n.filters.sizes.length) q.sizes = n.filters.sizes.join(',');
       if (n.filters.indoor !== 'ALL') q.indoor = n.filters.indoor;
@@ -116,7 +120,7 @@ const idOf = (tab, x) => (tab === 'place' ? x.placeId : tab === 'hospital' ? x.h
 
 /** S02 주변 탐색 — [내 근처 | 지역별] 기준 동반 장소 · 동물병원 · 펫호텔 + 버스 정류장 접근성 */
 export default function Explore() {
-  const [{ mode, me, region, tab, filters, sort }, update] = useExploreState();
+  const [{ mode, me, region, tab, filters, sort, reservable }, update] = useExploreState();
   const [selectedId, setSelectedId] = useState(null);
   const [list, setList] = useState({ items: [], page: 0, hasNext: false, total: 0 });
   const [moreLoading, setMoreLoading] = useState(false);
@@ -143,10 +147,12 @@ export default function Explore() {
         ...(tab === 'place'
           ? { categoryIds: filters.categoryIds, sizes: filters.sizes, indoor: INDOOR_QUERY[filters.indoor], sort }
           : {}),
+        ...(reservable && tab === 'hospital' ? { partner: true } : {}),
+        ...(reservable && tab === 'hotel' ? { bookable: true } : {}),
         size: PAGE_SIZE[tab],
       },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(baseQuery), filters, sort, tab],
+    [JSON.stringify(baseQuery), filters, sort, tab, reservable],
   );
   const queryKey = JSON.stringify([tab, query]);
   // 조건이 바뀌면 이전 결과(다른 탭의 카드 등)를 먼저 비우고, 새 결과가 오면 채워요
@@ -186,17 +192,26 @@ export default function Explore() {
     saveOrigin(o);
     update({ mode: 'me', me: o });
   };
-  const what = TABS.find((t) => t.value === tab).label;
+  const what = (reservable ? '예약 가능한 ' : '') + TABS.find((t) => t.value === tab).label;
 
   return (
     <>
-      <PageHero
-        line="E"
-        en="NEARBY"
-        title={'어디서 출발하든,\n같이 갈 수 있는 곳'}
-        desc={'내 위치나 지역을 고르면 반려동물과 갈 수 있는 장소와 동물병원 · 펫호텔을\n가까운 버스 정류장 · 대중교통 접근성과 함께 보여 드려요.'}
-      />
-      <NowStation steps={EXPLORE_STEPS} current={baseQuery ? 1 : 0} />
+      {reservable ? (
+        <PageHero
+          line="R"
+          en="RESERVE"
+          title={'예약 가능한\n병원 · 호텔'}
+          desc={'펫 플래닛에서 바로 예약할 수 있는 제휴 동물병원 · 펫호텔만 모았어요.\n"예약 가능만"을 끄면 주변 동물병원 · 펫호텔이 모두 보여요.'}
+        />
+      ) : (
+        <PageHero
+          line="E"
+          en="NEARBY"
+          title={'어디서 출발하든,\n같이 갈 수 있는 곳'}
+          desc={'내 위치나 지역을 고르면 반려동물과 갈 수 있는 장소와 동물병원 · 펫호텔을\n가까운 버스 정류장 · 대중교통 접근성과 함께 보여 드려요.'}
+        />
+      )}
+      <NowStation steps={reservable ? RESERVE_STEPS[tab] : EXPLORE_STEPS} current={reservable ? 0 : baseQuery ? 1 : 0} />
 
       <div className="container explore">
         <div className="explore-mode">
@@ -207,6 +222,18 @@ export default function Explore() {
         <div className="explore-tabs">
           <OptionGroup size="lg" label="찾을 곳" value={tab} onChange={(t) => update({ tab: t })} options={TABS} />
         </div>
+        {tab !== 'place' && (
+          <div className="reserve-chip-row">
+            <button type="button" className={`reserve-chip ${reservable ? 'is-on' : ''}`} aria-pressed={reservable} onClick={() => update({ reservable: !reservable })}>
+              예약 가능만{reservable && <span aria-hidden> ✕</span>}
+            </button>
+            <span className="reserve-chip-row__hint">
+              {reservable
+                ? `${tab === 'hospital' ? '제휴 병원' : '객실이 등록된 호텔'}만 보는 중 · 끄면 공공데이터 ${tab === 'hospital' ? '병원' : '호텔'}까지`
+                : '누르면 펫 플래닛에서 바로 예약할 수 있는 곳만 보여요'}
+            </span>
+          </div>
+        )}
         <FilterPanel
           categories={categories.data ?? []}
           value={filters}

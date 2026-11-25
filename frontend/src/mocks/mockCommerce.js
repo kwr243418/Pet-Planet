@@ -184,6 +184,72 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
     return toHospitalReservation(x);
   }
 
+  // ===== 병원 · 호텔 찜 + 최근 예약 (FacilityService) =====
+  const FAC = {
+    HOSPITAL: { list: () => db.hospitalBookmarks, key: 'hospitalId', find: hospitalOr404, dup: '이미 찜한 병원이에요.' },
+    HOTEL: { list: () => db.hotelBookmarks, key: 'hotelId', find: hotelOr404, dup: '이미 찜한 호텔이에요.' },
+  };
+  const facKind = r.is('GET', '/hospitals/:id/bookmark') || r.is('POST', '/hospitals/:id/bookmark') || r.is('DELETE', '/hospitals/:id/bookmark') ? 'HOSPITAL'
+    : r.is('GET', '/pet-hotels/:id/bookmark') || r.is('POST', '/pet-hotels/:id/bookmark') || r.is('DELETE', '/pet-hotels/:id/bookmark') ? 'HOTEL' : null;
+  if (facKind) {
+    const user = auth();
+    const f = FAC[facKind];
+    const path = facKind === 'HOSPITAL' ? '/hospitals/:id/bookmark' : '/pet-hotels/:id/bookmark';
+    const method = ['GET', 'POST', 'DELETE'].find((m) => r.is(m, path));
+    const id = Number(r.is(method, path).id);
+    f.find(id);
+    const rows = f.list();
+    const has = rows.some((x) => x.userId === user.userId && x[f.key] === id);
+    if (method === 'POST') {
+      if (has) fail(409, 'DUPLICATE_BOOKMARK', f.dup);
+      rows.push({ bookmarkId: ++db.seq.facilityBookmark, userId: user.userId, [f.key]: id, createdAt: new Date().toISOString() });
+      save();
+      return { kind: facKind, id, bookmarked: true };
+    }
+    if (method === 'DELETE') {
+      const i = rows.findIndex((x) => x.userId === user.userId && x[f.key] === id);
+      if (i >= 0) rows.splice(i, 1);
+      save();
+      return { kind: facKind, id, bookmarked: false };
+    }
+    return { kind: facKind, id, bookmarked: has };
+  }
+  if ((p = r.is('GET', '/users/me/facility-bookmarks'))) {
+    const user = auth();
+    const card = (kind, x, at) => ({ kind, id: kind === 'HOSPITAL' ? x.hospitalId : x.hotelId, name: x.name, address: x.address, sido: x.sido, sigungu: x.sigungu,
+      reservable: kind === 'HOSPITAL' ? x.partner : x.roomCount > 0, busAccess: x.busAccess, bookmarkedAt: at });
+    return [
+      ...db.hospitalBookmarks.filter((b) => b.userId === user.userId).map((b) => card('HOSPITAL', toHospital(hospitalOr404(b.hospitalId)), b.createdAt)),
+      ...db.hotelBookmarks.filter((b) => b.userId === user.userId).map((b) => card('HOTEL', toHotel(hotelOr404(b.hotelId), null, false), b.createdAt)),
+    ].sort((a, b) => b.bookmarkedAt.localeCompare(a.bookmarkedAt));
+  }
+  if ((p = r.is('GET', '/users/me/recent-facilities'))) {
+    const user = auth();
+    const now = Date.now();
+    const today = seoulDate(0);
+    const groups = new Map();
+    const add = (kind, id, name, sido, sigungu, reservable, lastAt, upcoming) => {
+      const k = `${kind}:${id}`;
+      const g = groups.get(k) ?? { kind, id, name, sido, sigungu, reservable, lastAt, count: 0, upcoming: false,
+        bookmarked: (kind === 'HOSPITAL' ? db.hospitalBookmarks : db.hotelBookmarks).some((b) => b.userId === user.userId && b[kind === 'HOSPITAL' ? 'hospitalId' : 'hotelId'] === id) };
+      g.count += 1;
+      if (lastAt > g.lastAt) g.lastAt = lastAt;
+      g.upcoming = g.upcoming || upcoming;
+      groups.set(k, g);
+    };
+    for (const x of db.hospitalReservations.filter((y) => y.userId === user.userId && y.status !== 'CANCELLED')) {
+      const h = toHospital(hospitalOr404(x.hospitalId));
+      add('HOSPITAL', h.hospitalId, h.name, h.sido, h.sigungu, h.partner, x.reservationDate, ACTIVE.includes(x.status) && parseWhen(x.reservationDate).ms >= now);
+    }
+    for (const x of db.hotelReservations.filter((y) => y.userId === user.userId && y.status !== 'CANCELLED')) {
+      const room = ROOM_TYPES.find((rt) => rt.roomId === x.roomId);
+      const h = toHotel(hotelOr404(room.hotelId), null, false);
+      add('HOTEL', h.hotelId, h.name, h.sido, h.sigungu, h.roomCount > 0, `${x.checkInDate}T00:00:00+09:00`, ACTIVE.includes(x.status) && x.checkInDate >= today);
+    }
+    const limit = Math.max(1, Math.min(Number(query.limit) || 6, 20));
+    return [...groups.values()].sort((a, b) => b.upcoming - a.upcoming || b.lastAt.localeCompare(a.lastAt)).slice(0, limit);
+  }
+
   // ===== 펫 호텔 =====
   if ((p = r.is('GET', '/pet-hotels'))) {
     const o = origin();

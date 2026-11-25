@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Pet-Planet 시연용 데이터 (BE2) — 시연 시나리오 docs/07 에 맞춘 계정 · 반려동물 · 제휴 병원/호텔 · 상품 · 예약 · 주문 · 리뷰
 -- 실행 순서: schema_full.sql → patch_v2_proposed.sql → patch_be2_public_data.sql → patch_bus_transit.sql
---            → seed_dev_places.sql → (이 파일) → (선택) db/loader 공공데이터 적재
+--            → patch_facility_bookmarks.sql → seed_dev_places.sql → (이 파일) → (선택) db/loader 공공데이터 적재
 -- 여러 번 실행해도 돼요. 이 파일이 만든 데이터와 schema_full.sql 의 옛 샘플만 지우고 다시 넣어요.
 --
 -- ⚠️ 병원·호텔·리뷰는 모두 "가상" 데이터예요 (실제 업체가 아님). 공공데이터로 넣은 실제 병원·호텔에는 리뷰를 넣지 않아요.
@@ -162,6 +162,16 @@ INSERT INTO hotel_reservations (user_id, room_id, pet_id, check_in_date, check_o
 (@r2, @room_s, @p2, CURDATE() + INTERVAL 2 DAY, CURDATE() + INTERVAL 5 DAY, 'CONFIRMED'),
 (@r3, @room_l, @p3, CURDATE() + INTERVAL 10 DAY, CURDATE() + INTERVAL 12 DAY, 'PENDING'),
 (@r1, @room_m, @p1, CURDATE() - INTERVAL 30 DAY, CURDATE() - INTERVAL 28 DAY, 'COMPLETED');
+-- 시연 계정: 지난달 호텔 1박 이용완료 (마이페이지 "최근 예약한 병원 · 호텔")
+INSERT INTO hotel_reservations (user_id, room_id, pet_id, check_in_date, check_out_date, status) VALUES
+(@demo, @room_m, @kong, CURDATE() - INTERVAL 40 DAY, CURDATE() - INTERVAL 39 DAY, 'COMPLETED');
+
+-- 병원 · 호텔 찜 (patch_facility_bookmarks.sql 을 먼저 실행) — 마이페이지 "찜한 병원 · 호텔"
+INSERT INTO hospital_bookmarks (user_id, hospital_id, created_at) VALUES
+(@demo, @h1, NOW() - INTERVAL 15 DAY),
+(@demo, @h3, NOW() - INTERVAL 23 DAY);
+INSERT INTO hotel_bookmarks (user_id, hotel_id, created_at) VALUES
+(@demo, @t2, NOW() - INTERVAL 35 DAY);
 
 -- ----------------------------------------------------------------------------
 -- 6. 주문 — 시연 계정: 배송완료 1건(→ 상품 리뷰 작성 가능) · 배송중 1건

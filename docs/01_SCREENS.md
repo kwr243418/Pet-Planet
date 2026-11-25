@@ -11,8 +11,8 @@
 | S02 | 주변 탐색 (내 근처 · 지역별) | `/explore` | E | FE1 | BE1 (+BE2) | places, place_categories, place_bookmarks, bus_stops, hospitals, pet_hotels | `GET /regions`, `GET /places`, `GET /hospitals`, `GET /pet-hotels`, `POST/DELETE /places/{id}/bookmark` | ✅ |
 | S03 | 장소 상세 | `/places/:placeId` | E | FE1 | BE1·BE2 | places, place_stations, place_bookmarks, reviews(PLACE) | `GET /places/{id}`, `GET/POST/PUT/DELETE /reviews` | ✅ |
 | S04-0 | 동물병원 상세 · 리뷰 | `/hospitals/:hospitalId` | R | FE2 | BE2 | hospitals, pets, hospital_reservations, reviews(HOSPITAL) | `GET /hospitals/{id}`, `GET /reviews?targetType=HOSPITAL` | ✅ API 연결 |
-| S04 | 동물병원 진료 예약 | `/reservations/hospital` | R | FE2 | BE2 | hospitals, pets, hospital_reservations | `GET /hospitals/{id}/available-times`, `POST /hospital-reservations` | ✅ API 연결 |
-| S05 | 펫 호텔 객실 예약 | `/reservations/hotel` | R | FE2 | BE2 | pet_hotels, room_types, pets, hotel_reservations | `GET /pet-hotels/{id}/rooms`, `POST /hotel-reservations` | ✅ API 연결 |
+| S04 | 동물병원 진료 예약 | `/reservations/hospital?hospitalId=` (병원은 예약선 `/explore?tab=hospital&book=1` · 상세 · 마이페이지에서 골라 들어와요) | R | FE2 | BE2 | hospitals, pets, hospital_reservations | `GET /hospitals/{id}/available-times`, `POST /hospital-reservations` | ✅ API 연결 |
+| S05 | 펫 호텔 객실 예약 | `/reservations/hotel?hotelId=` (예약선 `/explore?tab=hotel&book=1` · 마이페이지에서) | R | FE2 | BE2 | pet_hotels, room_types, pets, hotel_reservations | `GET /pet-hotels/{id}/rooms`, `POST /hotel-reservations` | ✅ API 연결 |
 | S06 | 펫 스토어 | `/shop` | S | FE2 | BE2 | product_categories, products, cart_items | `GET /products`, `POST /cart/items` | ✅ API 연결 |
 | S07 | 장바구니 · 주문서 | `/cart` | S | FE2 | BE2 | cart_items, orders, order_items, products | `GET /cart`, `POST /orders` | ✅ API 연결 |
 | S08 | 마이페이지 | `/mypage` | M | **FE1 + FE2** | BE1·BE2 | users, pets, reviews, place_bookmarks / hospital·hotel_reservations, orders | `GET /users/me/summary` 외 | ✅ (예약·주문 칸 포함) |

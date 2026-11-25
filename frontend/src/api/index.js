@@ -86,6 +86,16 @@ export const hotelApi = {
   changeStatus: (reservationId, status) => http.patch(`/hotel-reservations/${reservationId}/status`, { status }),
 };
 
+/** 병원 · 호텔 찜 + 마이페이지 "내 병원 · 호텔" (kind: 'HOSPITAL' | 'HOTEL') — backend FacilityController */
+const facilityPath = (kind, id) => (kind === 'HOTEL' ? `/pet-hotels/${id}/bookmark` : `/hospitals/${id}/bookmark`);
+export const facilityApi = {
+  bookmarkState: (kind, id) => http.get(facilityPath(kind, id)),
+  bookmark: (kind, id) => http.post(facilityPath(kind, id)),
+  unbookmark: (kind, id) => http.delete(facilityPath(kind, id)),
+  myBookmarks: () => http.get('/users/me/facility-bookmarks'),
+  recent: (limit) => http.get('/users/me/recent-facilities', { limit }),
+};
+
 export const shopApi = {
   categories: () => http.get('/product-categories'),
   products: (q) => http.get('/products', q), // { categoryId?, keyword?, page?, size? }

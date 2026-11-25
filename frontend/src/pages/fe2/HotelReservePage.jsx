@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
-import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Spinner, Tag } from '../../components/common/ui.jsx';
+import { Button, EmptyState, ErrorState, PageLoader, Spinner, Tag } from '../../components/common/ui.jsx';
 import { useToast } from '../../components/common/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { GENDER_LABEL } from '../../utils/format.js';
-import ReserveTabs from './ReserveTabs.jsx';
+import SelectedFacility from './SelectedFacility.jsx';
+import { RESERVE_STEPS, reserveExploreUrl } from '../../utils/reserve.js';
 import { hotelApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import { focusFirstInvalid, usePageTitle } from '../../hooks/usePage.js';
@@ -36,13 +37,18 @@ function StatusRoute({ current = 0 }) {
   );
 }
 
-/** S05 펫 호텔 객실 예약 — GET /api/pet-hotels?bookable=true, /rooms (체중·기간 검증), POST /api/hotel-reservations */
+/**
+ * S05 펫 호텔 객실 예약 — GET /api/pet-hotels/{id}, /rooms (체중·기간 검증), POST /api/hotel-reservations
+ * 호텔은 주변 탐색(예약 가능만) · 마이페이지(최근 예약 · 찜)에서 골라 ?hotelId= 로 들어와요.
+ * hotelId 없이 들어오면 주변 탐색의 예약 가능한 펫호텔 목록으로 보내요.
+ */
 export default function HotelReservePage() {
   usePageTitle('펫 호텔 예약');
   const toast = useToast();
   const { isLoggedIn, booting, pets } = useAuth();
   const [params] = useSearchParams();
-  const [hotelId, setHotelId] = useState(() => Number(params.get('hotelId')) || null); // 주변 탐색에서 고른 호텔
+  const location = useLocation();
+  const hotelId = Number(params.get('hotelId')) || null; // 주변 탐색 · 마이페이지에서 고른 호텔
   const [petId, setPetId] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -51,9 +57,8 @@ export default function HotelReservePage() {
   const [done, setDone] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const hotelsQ = useAsync(() => hotelApi.list({ bookable: true, size: 20 }).then((r) => r.content), []);
-  const hotels = hotelsQ.data ?? [];
-  const hotel = hotels.find((h) => h.hotelId === hotelId) ?? hotels[0];
+  const hotelQ = useAsync(() => hotelApi.get(hotelId), [hotelId], { enabled: !!hotelId });
+  const hotel = hotelQ.data;
   const pet = pets.find((p) => p.petId === petId);
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
   const ready = !!hotel && !!pet && nights >= 1;
@@ -96,19 +101,19 @@ export default function HotelReservePage() {
   const hero = (
     <>
       <PageHero line="R" photo="/images/a5-hotel-retriever.jpg" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
-      <NowStation steps={['예약 선택', '호텔 선택', '객실 · 체중 검증', '예약 완료']} current={done ? 3 : 2} />
+      <NowStation steps={RESERVE_STEPS.hotel} current={done ? 3 : 2} />
     </>
   );
 
-  if (booting || (hotelsQ.loading && !hotelsQ.data)) return <PageLoader />;
+  if (!hotelId) return <Navigate to={reserveExploreUrl('hotel')} replace />;
+  if (booting || (hotelQ.loading && !hotelQ.data)) return <PageLoader />;
 
   if (!isLoggedIn) {
     return (
       <>
         {hero}
         <div className="container fe2">
-          <ReserveTabs />
-          <EmptyState title="로그인이 필요해요" desc="내 반려동물의 체중으로 객실을 확인하려면 먼저 로그인해 주세요." action={<Link to="/login?redirect=%2Freservations%2Fhotel" className="btn btn--primary btn--md">로그인하기</Link>} />
+          <EmptyState title="로그인이 필요해요" desc="내 반려동물의 체중으로 객실을 확인하려면 먼저 로그인해 주세요." action={<Link to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} className="btn btn--primary btn--md">로그인하기</Link>} />
         </div>
       </>
     );
@@ -149,41 +154,41 @@ export default function HotelReservePage() {
     );
   }
 
-  if (hotelsQ.error || !hotel) {
+  if (hotelQ.error || !hotel || !hotel.roomCount) {
+    const findAction = (
+      <Link to={reserveExploreUrl('hotel')} className="btn btn--primary btn--md">
+        예약 가능한 호텔 찾기
+      </Link>
+    );
     return (
       <>
         {hero}
         <div className="container fe2">
-          <ReserveTabs />
-          {hotelsQ.error ? <ErrorState error={hotelsQ.error} onRetry={hotelsQ.reload} /> : <EmptyState title="예약할 수 있는 펫 호텔이 없어요" desc="객실이 등록된 호텔이 없어요. db/seed_demo.sql 로 시연용 호텔을 넣었는지 확인해 주세요." />}
+          {hotelQ.error?.status === 404 || !hotel ? (
+            <EmptyState title="호텔을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={findAction} />
+          ) : hotelQ.error ? (
+            <ErrorState error={hotelQ.error} onRetry={hotelQ.reload} />
+          ) : (
+            <EmptyState title="이 호텔은 아직 객실을 등록하지 않았어요" desc={`${hotel.name}은(는) 공공데이터로 등록된 호텔이라 온라인 예약을 받지 않아요.`} action={findAction} />
+          )}
         </div>
       </>
     );
   }
 
-  const stop = hotel.busAccess;
-
   return (
     <>
       {hero}
       <div className="container fe2">
-        <ReserveTabs />
         <form className="fe2-form" onSubmit={submit} noValidate>
           {/* 호텔 정보 */}
           <section className="card fe2-section">
-            <h2 className="fe2-step-title">호텔 선택</h2>
-            <OptionGroup
-              label="호텔"
-              value={hotel.hotelId}
-              onChange={(v) => {
-                setHotelId(v);
-                setRoomId(null);
-              }}
-              options={hotels.map((h) => ({ value: h.hotelId, label: h.name }))}
+            <h2 className="fe2-step-title">호텔</h2>
+            <SelectedFacility
+              kind="HOTEL"
+              facility={hotel}
+              meta={[hotel.address, hotel.phone, hotel.minPrice && `1박 ${won(hotel.minPrice)}부터`].filter(Boolean).join(' · ')}
             />
-            <p className="fe2-note">
-              {[hotel.address, hotel.phone, stop?.stopId && `${stop.stopName} 정류장 도보 ${stop.walkMin}분`, hotel.minPrice && `1박 ${won(hotel.minPrice)}부터`].filter(Boolean).join(' · ')}
-            </p>
           </section>
 
           {/* 1. 반려동물 */}

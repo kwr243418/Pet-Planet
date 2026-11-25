@@ -170,3 +170,37 @@ test('배송 단계: 한 단계씩만 · 배송완료 후 상품 리뷰 가능 (
   assert.equal(d('GET', '/reviews/eligibility', { query: { targetType: 'HOSPITAL', targetId: 1 } }).allowed, true);
   assert.equal(d('GET', '/users/me/hospital-reservations').length, 2);
 });
+
+test('병원 · 호텔 찜: 상태 조회 · 중복 409 · 목록 · 해제', () => {
+  const api = createMockServer({ storage: mem() });
+  const call = demo(api);
+  // 시드: 데모 계정은 병원 1 · 3, 호텔 2 를 찜해 둠
+  assert.equal(call('GET', '/hospitals/1/bookmark').bookmarked, true);
+  assert.equal(call('GET', '/hospitals/2/bookmark').bookmarked, false);
+  expectError(() => call('POST', '/hospitals/1/bookmark'), 409, 'DUPLICATE_BOOKMARK');
+  assert.deepEqual(call('POST', '/hospitals/2/bookmark'), { kind: 'HOSPITAL', id: 2, bookmarked: true });
+  const list = call('GET', '/users/me/facility-bookmarks');
+  assert.equal(list.length, 4);
+  assert.equal(list[0].kind, 'HOSPITAL');
+  assert.equal(list[0].id, 2); // 방금 찜한 곳이 맨 위
+  assert.ok(list.some((x) => x.kind === 'HOTEL' && x.id === 2 && x.reservable));
+  assert.equal(call('DELETE', '/pet-hotels/2/bookmark').bookmarked, false);
+  assert.equal(call('GET', '/users/me/facility-bookmarks').filter((x) => x.kind === 'HOTEL').length, 0);
+  expectError(() => call('POST', '/hospitals/999/bookmark'), 404, 'HOSPITAL_NOT_FOUND');
+  expectError(() => api.handle('GET', '/hospitals/1/bookmark'), 401);
+});
+
+test('최근 예약한 병원 · 호텔: 병원/호텔별로 묶고 다가오는 예약이 먼저, 취소는 빼요', () => {
+  const api = createMockServer({ storage: mem() });
+  const call = demo(api);
+  const recent = call('GET', '/users/me/recent-facilities');
+  // 시드: 병원 1(이용완료) · 병원 2(예약확정, 3일 뒤) · 호텔 1(40일 전 이용완료)
+  assert.deepEqual(recent.map((x) => `${x.kind}:${x.id}`), ['HOSPITAL:2', 'HOSPITAL:1', 'HOTEL:1']);
+  assert.equal(recent[0].upcoming, true);
+  assert.equal(recent[1].bookmarked, true);
+  assert.equal(recent[2].count, 1);
+  // 병원 2 예약을 취소하면 목록에서 빠져요
+  const r2 = call('GET', '/users/me/hospital-reservations').find((x) => x.hospitalId === 2);
+  call('PATCH', `/hospital-reservations/${r2.reservationId}/cancel`);
+  assert.deepEqual(call('GET', '/users/me/recent-facilities').map((x) => `${x.kind}:${x.id}`), ['HOSPITAL:1', 'HOTEL:1']);
+});

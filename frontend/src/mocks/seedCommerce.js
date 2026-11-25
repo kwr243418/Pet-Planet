@@ -88,7 +88,15 @@ export function commerceSeed(now = new Date()) {
     // 스위트 룸 +2~+5일 예약확정 → BOOKED, 라지 룸 +10~+12일 승인대기
     { reservationId: 1, userId: 3, roomId: 3, petId: 4, checkInDate: seoulDate(2, now), checkOutDate: seoulDate(5, now), status: 'CONFIRMED', createdAt: at(-3, '10:00', now) },
     { reservationId: 2, userId: 4, roomId: 2, petId: 5, checkInDate: seoulDate(10, now), checkOutDate: seoulDate(12, now), status: 'PENDING', createdAt: at(-1, '10:00', now) },
+    // 데모 계정: 지난달 1박 이용완료 → 마이페이지 "최근 예약한 병원 · 호텔"
+    { reservationId: 3, userId: 1, roomId: 1, petId: 1, checkInDate: seoulDate(-40, now), checkOutDate: seoulDate(-39, now), status: 'COMPLETED', createdAt: at(-45, '10:00', now) },
   ];
+  // 데모 계정의 병원 · 호텔 찜 (db/seed_demo.sql 과 같음)
+  const hospitalBookmarks = [
+    { bookmarkId: 1, userId: 1, hospitalId: 1, createdAt: at(-15, '10:00', now) },
+    { bookmarkId: 2, userId: 1, hospitalId: 3, createdAt: at(-23, '10:00', now) },
+  ];
+  const hotelBookmarks = [{ bookmarkId: 1, userId: 1, hotelId: 2, createdAt: at(-35, '10:00', now) }];
   const orders = [
     // 데모 계정: 배송완료(→ 상품 리뷰 작성 가능) · 배송중
     { orderId: 1, userId: 1, status: 'DELIVERED', receiverName: '박민서', receiverPhone: '010-1234-5678', address: '서울 마포구 양화로 000 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-10, '12:00', now),
@@ -114,7 +122,7 @@ export function commerceSeed(now = new Date()) {
     review(5007, 3, 'PRODUCT', 10, 4, 5, '버스 탈 때 들고 다니기 가볍고 튼튼해요. 소형견용으로 추천해요.', 15),
     review(5008, 3, 'PRODUCT', 6, 4, 4, '달지 않고 쫀득해서 잘 먹어요.', 15),
   ];
-  return { hospitalReservations, hotelReservations, orders, reviews };
+  return { hospitalReservations, hotelReservations, hospitalBookmarks, hotelBookmarks, orders, reviews };
 }
 
 /** 진료 예약 시간: 10:00~17:30, 30분 단위, 점심시간(기본 13:00-14:00) 제외 — 백엔드 HospitalService.slotTimes 와 같음 */

@@ -1,10 +1,12 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { IMG, LogoMark } from '../illust/index.jsx';
+import { isReserveExplore, reserveExploreUrl } from '../../utils/reserve.js';
 
 export const LINES_NAV = [
   { key: 'E', label: '주변 탐색', short: '탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
-  { key: 'R', label: '병원 · 호텔', short: '예약', name: '예약선', to: '/reservations/hospital', match: ['/reservations', '/hospitals'] },
+  // 예약선 = 주변 탐색의 동물병원 탭 + "예약 가능만" (병원 · 호텔은 주변 탐색 → 상세 → 예약으로 이어져요)
+  { key: 'R', label: '병원 · 호텔', short: '예약', name: '예약선', to: reserveExploreUrl(), match: ['/reservations', '/hospitals'] },
   { key: 'S', label: '펫 스토어', short: '스토어', name: '쇼핑선', to: '/shop', match: ['/shop', '/cart'] },
   { key: 'M', label: '마이페이지', short: '마이', name: '마이선', to: '/mypage', match: ['/mypage', '/signup', '/pets'] },
 ];
@@ -25,8 +27,9 @@ export function Logo() {
 
 /** 공통 헤더: 로고 · 노선 메뉴 4개 · 장바구니 · 로그인. 현재 노선은 흰 배경 */
 export function SiteHeader({ tone = 'mint' }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { user, logout } = useAuth();
+  const reserveView = isReserveExplore(pathname, search); // 주변 탐색이지만 "예약 가능만"이면 예약선에 밑줄
   const navigate = useNavigate();
   return (
     <header className={`site-header site-header--${tone}`}>
@@ -34,7 +37,7 @@ export function SiteHeader({ tone = 'mint' }) {
         <Logo />
         <nav className="line-nav" aria-label="노선 메뉴">
           {LINES_NAV.map((l) => {
-            const active = l.match.some((m) => pathname.startsWith(m));
+            const active = l.key === 'R' ? reserveView || l.match.some((m) => pathname.startsWith(m)) : !(reserveView && l.key === 'E') && l.match.some((m) => pathname.startsWith(m));
             return (
               <NavLink key={l.key} to={l.to} className={`line-nav__item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
                 <LetterBadge letter={l.key} size="sm" />

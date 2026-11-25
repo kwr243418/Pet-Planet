@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePage.js';
 import { IMG, LogoMark } from '../components/illust/index.jsx';
 import { NextCue, useFullPage } from '../components/common/FullPage.jsx';
+import { reserveExploreUrl } from '../utils/reserve.js';
 
 const PILLARS = [
   { title: '탐색', img: IMG.engraveSpaniel, alt: '앉아 있는 스패니얼 판화', desc: '내 위치나 우리 지역에서 반려동물과 함께 갈 수 있는 곳을 버스 정류장과 함께 찾습니다.', href: '#explore' },
@@ -34,7 +35,7 @@ const FEATURES = [
     img: IMG.vet,
     alt: '진료대 위 강아지와 수의사의 손',
     items: ['공공데이터 기반 동물병원 · 펫호텔 정보', '동물병원은 30분 단위, 한 칸에 1건 예약', '펫호텔은 반려동물 체중에 맞는 객실만 선택', '대기 → 확정 → 완료 순으로 예약 상태 확인'],
-    to: '/reservations/hospital',
+    to: reserveExploreUrl(),
     cta: '예약하러 가기',
     reverse: true,
   },

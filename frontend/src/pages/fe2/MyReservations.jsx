@@ -6,6 +6,7 @@ import { hospitalApi, hotelApi, reviewApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import ReviewFormModal from './ReviewFormModal.jsx';
 import { DEMO_MODE } from './demo.js';
+import { reserveExploreUrl } from '../../utils/reserve.js';
 
 const STATUS_LABEL = { PENDING: '승인대기', CONFIRMED: '예약확정', COMPLETED: '이용완료', CANCELLED: '취소됨' };
 const STATUS_TONE = { PENDING: 'beige', CONFIRMED: 'mint', COMPLETED: 'white', CANCELLED: 'white' };
@@ -107,7 +108,7 @@ export default function MyReservations({ onChanged }) {
           title="예약 내역이 없어요"
           desc="동물병원 진료나 펫 호텔을 예약해 보세요."
           action={
-            <Link to="/reservations/hospital" className="btn btn--outline btn--md">
+            <Link to={reserveExploreUrl()} className="btn btn--outline btn--md">
               예약하러 가기
             </Link>
           }

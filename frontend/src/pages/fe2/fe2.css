@@ -645,3 +645,89 @@
   justify-content: space-between;
   gap: 8px;
 }
+/* ---------- 예약 화면: 고르고 들어온 병원 · 호텔 요약 (예약 화면에서는 다시 고르지 않아요) ---------- */
+.fe2-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--line, #dcd6cc);
+  background: var(--white, #fff);
+}
+.fe2-selected__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fe2-selected__name {
+  margin-bottom: 10px;
+  font-family: var(--font-title);
+  font-size: 24px;
+  line-height: 1.3;
+}
+.fe2-selected__meta {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.fe2-selected__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+.fe2-selected__link {
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .fe2-selected {
+    flex-direction: column;
+  }
+  .fe2-selected__side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+
+/* 병원 · 호텔 찜 버튼 */
+.facility-heart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.facility-heart svg path {
+  fill: none;
+  stroke: currentColor;
+}
+.facility-heart.is-on svg path {
+  fill: var(--gold);
+  stroke: var(--gold);
+}
+.facility-heart--light {
+  background: transparent;
+  color: var(--night);
+  box-shadow: inset 0 0 0 1px var(--line-strong, #cfc6b8);
+}
+.facility-heart--night {
+  background: transparent;
+  color: var(--on-night);
+  box-shadow: inset 0 0 0 1px #5a564f;
+}
+.fe2-cartbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fe2-fav-mark {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: -2px;
+}
+.fe2-fav-mark svg path {
+  fill: var(--gold);
+  stroke: var(--gold);
+}

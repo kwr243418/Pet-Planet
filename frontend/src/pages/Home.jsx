@@ -12,10 +12,11 @@ import { PRESET_ORIGINS, readOrigin } from '../utils/origin.js';
 import { readRegion } from './Explore.jsx';
 import { regionLabel } from '../utils/region.js';
 import { NextCue, useFullPage } from '../components/common/FullPage.jsx';
+import { reserveExploreUrl } from '../utils/reserve.js';
 
 const LINE_TILES = [
   { key: 'E', name: '탐색선', title: '내 주변\n동반 장소 탐색', desc: '내 위치 · 지역별 장소 · 병원 · 호텔과 버스 정류장', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
-  { key: 'R', name: '예약선', title: '동물병원 ·\n펫 호텔 예약', desc: '체중에 맞는 객실만 골라 보여 줍니다', cta: '예약선 타기', to: '/reservations/hospital', img: IMG.engraveTerrier },
+  { key: 'R', name: '예약선', title: '동물병원 ·\n펫 호텔 예약', desc: '체중에 맞는 객실만 골라 보여 줍니다', cta: '예약선 타기', to: reserveExploreUrl(), img: IMG.engraveTerrier },
   { key: 'S', name: '쇼핑선', title: '사료 · 간식 ·\n외출 용품 쇼핑', desc: '장바구니부터 배송 조회까지 한 번에', cta: '쇼핑선 타기', to: '/shop', img: IMG.engravePointerStanding },
   { key: 'M', name: '마이선', title: '예약 · 주문 ·\n리뷰 한곳에서', desc: '장소 후기와 상품 후기를 하나로', cta: '마이선 타기', to: '/mypage', img: IMG.engraveRetriever },
 ];

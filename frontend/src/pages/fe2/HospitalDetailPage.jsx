@@ -14,6 +14,8 @@ import { readOrigin } from '../../utils/origin.js';
 import TransitPanel from '../../components/transit/TransitPanel.jsx';
 import TransitBadge from '../../components/transit/TransitBadge.jsx';
 import KakaoReviewLink from '../../components/transit/KakaoReviewLink.jsx';
+import FacilityHeart from '../../components/facility/FacilityHeart.jsx';
+import { RESERVE_STEPS, reserveExploreUrl } from '../../utils/reserve.js';
 import './fe2.css';
 
 const PAGE_SIZE = 3;
@@ -50,7 +52,7 @@ export default function HospitalDetailPage() {
     return (
       <div className="container fe2">
         {hospitalQ.error.status === 404 ? (
-          <EmptyState title="병원을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={<Link to="/reservations/hospital" className="btn btn--outline btn--md">예약 화면으로</Link>} />
+          <EmptyState title="병원을 찾을 수 없어요" desc="주소가 올바른지 확인해 주세요." action={<Link to={reserveExploreUrl()} className="btn btn--outline btn--md">예약 가능한 병원 보기</Link>} />
         ) : (
           <ErrorState error={hospitalQ.error} onRetry={hospitalQ.reload} />
         )}
@@ -72,12 +74,12 @@ export default function HospitalDetailPage() {
     <>
       <PageHero line="R" en="CLINIC" compact title={hospital.name} desc="병원 정보와 방문 리뷰를 먼저 확인하는 화면이에요." art={<TinyDog size={140} />}>
         <p className="page-hero__desc">
-          <Link to="/reservations/hospital" className="text-link">
-            병원 · 호텔 예약 › 동물병원
+          <Link to={hospital.partner ? reserveExploreUrl() : '/explore?tab=hospital'} className="text-link">
+            {hospital.partner ? '병원 · 호텔 › 예약 가능한 동물병원' : '주변 탐색 › 동물병원'}
           </Link>
         </p>
       </PageHero>
-      <NowStation steps={['예약 선택', '병원 상세', '반려동물 · 일시', '신청 완료']} current={1} />
+      <NowStation steps={RESERVE_STEPS.hospital} current={1} />
 
       <div className="container fe2">
         {/* 병원 헤더 */}
@@ -221,18 +223,21 @@ export default function HospitalDetailPage() {
               별점 {avg.toFixed(1)} · 리뷰 {count}개
             </span>
           </p>
-          {hospital.partner ? (
-            <Link to={`/reservations/hospital?hospitalId=${hospital.hospitalId}`} className="btn btn--primary btn--md">
-              진료 예약하기
-            </Link>
-          ) : hospital.phone ? (
-            // 공공데이터로 들어온 병원은 예약을 받지 않아요 → 예약 화면(제휴 병원만)으로 보내면 다른 병원이 골라져요
-            <a href={`tel:${hospital.phone}`} className="btn btn--primary btn--md">
-              전화로 문의하기
-            </a>
-          ) : (
-            <span className="fe2-sticky__note">온라인 예약을 받지 않는 병원이에요</span>
-          )}
+          <div className="fe2-cartbar__actions">
+            <FacilityHeart kind="HOSPITAL" id={hospital.hospitalId} tone="night" />
+            {hospital.partner ? (
+              <Link to={`/reservations/hospital?hospitalId=${hospital.hospitalId}`} className="btn btn--primary btn--md">
+                진료 예약하기
+              </Link>
+            ) : hospital.phone ? (
+              // 공공데이터로 들어온 병원은 예약을 받지 않아요 → 전화 문의
+              <a href={`tel:${hospital.phone}`} className="btn btn--primary btn--md">
+                전화로 문의하기
+              </a>
+            ) : (
+              <span className="fe2-sticky__note">온라인 예약을 받지 않는 병원이에요</span>
+            )}
+          </div>
         </div>
       </div>
     </>
