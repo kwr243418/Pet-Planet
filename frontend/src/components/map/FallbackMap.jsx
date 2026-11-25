@@ -53,26 +53,26 @@ export default function FallbackMap({ center, markers, radiusKm, selectedId, onM
   return (
     <div className="map-box map-box--fallback" style={{ height }} ref={boxRef}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" role="img" aria-label="장소 위치 지도">
-        <rect width={W} height={H} fill="#c4ebc3" />
+        <rect width={W} height={H} fill="#ECE8E1" />
         {/* 블록 & 도로 */}
         {[0.17, 0.38, 0.62, 0.83].map((f) => (
-          <rect key={`v${f}`} x={W * f} y="0" width="16" height={H} fill="#e2f3e0" />
+          <rect key={`v${f}`} x={W * f} y="0" width="14" height={H} fill="#F7F5F1" />
         ))}
         {[0.15, 0.7].map((f) => (
-          <rect key={`h${f}`} x="0" y={H * f} width={W} height="16" fill="#e2f3e0" />
+          <rect key={`h${f}`} x="0" y={H * f} width={W} height="14" fill="#F7F5F1" />
         ))}
-        {/* 지하철 노선 (역을 지나는 굵은 선) */}
-        <rect x="0" y={c.y - 7} width={W} height="14" rx="7" fill="#264536" />
-        {radiusKm && <circle cx={c.x} cy={c.y} r={radiusKm * proj.scale} fill="#ffffff" fillOpacity=".18" stroke="#264536" strokeWidth="2" strokeDasharray="5 6" />}
+        {/* 지하철 노선 (역을 지나는 가는 금색 선) */}
+        <rect x="0" y={c.y - 1} width={W} height="2" fill="#C9A26B" />
+        {radiusKm && <circle cx={c.x} cy={c.y} r={radiusKm * proj.scale} fill="#ffffff" fillOpacity=".35" stroke="#8A6A3B" strokeWidth="1" strokeDasharray="4 6" />}
 
         {stations.map((s) => {
           const { x, y } = proj.xy(s);
           const w = s.label.length * 13 + 28;
           return (
             <g key={`s-${s.id}`} pointerEvents="none">
-              <circle cx={x} cy={y} r="15" fill="#c4ebc3" stroke="#264536" strokeWidth="6" />
-              <rect x={x - w / 2} y={y + 22} width={w} height="26" rx="13" fill="#fff" />
-              <text x={x} y={y + 39.5} fontSize="13" fontWeight="800" fill="#264536" textAnchor="middle">
+              <rect x={x - 9} y={y - 9} width="18" height="18" fill="#1C1B19" stroke="#C9A26B" strokeWidth="1.5" />
+              <rect x={x - w / 2} y={y + 20} width={w} height="26" fill="#1C1B19" />
+              <text x={x} y={y + 37.5} fontSize="13" fill="#F4F1EA" textAnchor="middle" fontFamily="'Gowun Batang', serif">
                 {s.label}
               </text>
             </g>
@@ -93,14 +93,14 @@ export default function FallbackMap({ center, markers, radiusKm, selectedId, onM
               aria-label={`${m.num ?? ''} ${m.label}`}
               onKeyDown={(e) => e.key === 'Enter' && onMarkerClick?.(m.id)}
             >
-              <circle r={on ? 18 : 14} fill={on ? '#264536' : '#fff'} stroke="#264536" strokeWidth="3" />
-              <text y={on ? 5.5 : 5} fontSize={on ? 15 : 13} fontWeight="800" fill={on ? '#fff' : '#264536'} textAnchor="middle" fontFamily="Jost, sans-serif">
+              <rect x={on ? -15 : -12} y={on ? -15 : -12} width={on ? 30 : 24} height={on ? 30 : 24} fill={on ? '#1C1B19' : '#fff'} stroke="#1C1B19" strokeWidth="1" />
+              <text y={on ? 5 : 4.5} fontSize={on ? 14 : 12} fill={on ? '#F4F1EA' : '#1C1B19'} textAnchor="middle" fontFamily="'Gowun Batang', serif">
                 {m.num ?? '•'}
               </text>
               {on && (
                 <g transform="translate(0 -32)">
-                  <rect x={-(m.label.length * 6.6 + 14)} y="-14" width={m.label.length * 13.2 + 28} height="26" rx="13" fill="#264536" />
-                  <text y="4" fontSize="12.5" fontWeight="700" fill="#fff" textAnchor="middle">
+                  <rect x={-(m.label.length * 6.6 + 14)} y="-14" width={m.label.length * 13.2 + 28} height="26" fill="#1C1B19" />
+                  <text y="4" fontSize="12.5" fill="#F4F1EA" textAnchor="middle">
                     {m.label}
                   </text>
                 </g>

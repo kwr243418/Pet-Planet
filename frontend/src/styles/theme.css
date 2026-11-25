@@ -326,9 +326,6 @@ h3,
   color: var(--gold);
   white-space: normal;
 }
-.page-hero__en br {
-  display: none;
-}
 .page-hero--compact .page-hero__en {
   font-size: 12px;
 }
@@ -1352,9 +1349,6 @@ h3,
   letter-spacing: 0.22em;
   color: var(--gold);
 }
-.ticket-page__en br {
-  display: none;
-}
 .ticket-page__title {
   margin-top: 18px;
   font-size: clamp(28px, 3vw, 40px);
@@ -1526,4 +1520,23 @@ h3,
 /* 홈 맨 아래 검정 배너가 푸터와 바로 이어지게 */
 .home .section:last-child {
   padding-bottom: 0;
+}
+
+/* 지도 상자 · 헤더 초점 표시 */
+.map-box {
+  background: var(--mint);
+  border: 1px solid var(--hairline);
+}
+.map-box__label,
+.map-box__note {
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+.site-header :focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 4px;
+}
+/* 장바구니 바가 아래 내용(오류 안내 버튼 등)을 가리지 않게 */
+.fe2 {
+  padding-bottom: 120px;
 }
