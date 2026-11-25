@@ -9,7 +9,7 @@
 --
 -- 시연 계정 (비밀번호 모두 petplanet123!)
 --   demo@petplanet.kr     김펫러버  USER      반려동물 콩이(푸들 3.2kg) · 보리(진돗개 18kg) — 호텔 체중 검증 시연
---   partner@petplanet.kr  홍대사장  BUSINESS  시연 병원 3곳 · 호텔 2곳의 사업자 (예약 승인)
+--   partner@petplanet.kr  목포사장  BUSINESS  시연 병원 3곳 · 호텔 2곳의 사업자 (예약 승인) — 병원 · 호텔은 목포 하당 · 옥암 · 용해 (11/25)
 --   admin@petplanet.kr    관리자    ADMIN     배송 단계 변경
 --   review1~3@petplanet.kr                    다른 이용자 (병원·상품·장소 리뷰 작성자)
 -- ============================================================================
@@ -31,12 +31,18 @@ DELETE FROM hospitals WHERE (name, address) IN (
     ('서울동물병원', '서울시 중구 을지로 100번지'),
     ('홍대 펫메디컬센터', '서울 마포구 양화로 000 (시연용)'),
     ('연남 우리동물병원', '서울 마포구 동교로 000 (시연용)'),
-    ('신촌 해든 동물병원', '서울 서대문구 연세로 000 (시연용)'));
+    ('신촌 해든 동물병원', '서울 서대문구 연세로 000 (시연용)'),
+    -- 11/25 목포로 옮긴 시연 병원
+    ('펫플래닛 하당 동물병원', '전남광주통합특별시 목포시 하당로 000 (시연용)'),
+    ('펫플래닛 옥암 동물병원', '전남광주통합특별시 목포시 옥암로 000 (시연용)'),
+    ('펫플래닛 용해 동물병원', '전남광주통합특별시 목포시 용해로 000 (시연용)'));
 DELETE FROM pet_hotels WHERE (name, address) IN (
     ('펫라이프호텔', '서울시 강동구 천호대로 200번지'),
     ('럭셔리펫이웃', '서울시 송파구 올림픽로 150번지'),
     ('멍냥 스테이 홍대', '서울 마포구 와우산로 000 (시연용)'),
-    ('포근 펫호텔 합정', '서울 마포구 토정로 000 (시연용)'));
+    ('포근 펫호텔 합정', '서울 마포구 토정로 000 (시연용)'),
+    ('펫플래닛 스테이 하당', '전남광주통합특별시 목포시 평화로 000 (시연용)'),
+    ('펫플래닛 펫호텔 옥암', '전남광주통합특별시 목포시 남악로 000 (시연용)'));
 
 -- 지운 병원의 리뷰 정리 (reviews.target_id 는 여러 테이블을 가리켜서 FK 가 없어요 → 직접 지워야 해요)
 DELETE FROM reviews WHERE review_id > 0 AND target_type = 'HOSPITAL'
@@ -52,7 +58,7 @@ DELETE FROM product_categories WHERE category_id > 0;
 -- ----------------------------------------------------------------------------
 INSERT INTO users (email, password, name, role) VALUES ('demo@petplanet.kr', '{plain}petplanet123!', '김펫러버', 'USER');
 SET @demo := LAST_INSERT_ID();
-INSERT INTO users (email, password, name, role) VALUES ('partner@petplanet.kr', '{plain}petplanet123!', '홍대사장', 'BUSINESS');
+INSERT INTO users (email, password, name, role) VALUES ('partner@petplanet.kr', '{plain}petplanet123!', '목포사장', 'BUSINESS');
 SET @partner := LAST_INSERT_ID();
 INSERT INTO users (email, password, name, role) VALUES ('admin@petplanet.kr', '{plain}petplanet123!', '관리자', 'ADMIN');
 INSERT INTO users (email, password, name, role) VALUES ('review1@petplanet.kr', '{plain}petplanet123!', '콩이맘', 'USER');
@@ -74,22 +80,23 @@ INSERT INTO pets (user_id, name, breed, weight, gender, is_neutered) VALUES (@r3
 SET @p3 := LAST_INSERT_ID();
 
 -- ----------------------------------------------------------------------------
--- 2. 제휴 동물병원 (가상) — 홍대입구·신촌 근처, 사업자 = partner
+-- 2. 제휴 동물병원 (가상) — 목포 하당 · 옥암 · 용해, 사업자 = partner
+--    이름에 "펫플래닛"을 붙여 실제 병원과 헷갈리지 않게 했어요 (주소 번지는 000)
 -- ----------------------------------------------------------------------------
 INSERT INTO hospitals (user_id, name, address, phone, latitude, longitude, operating_hours, intro, departments, lunch_time) VALUES
-(@partner, '홍대 펫메디컬센터', '서울 마포구 양화로 000 (시연용)', '02-000-0001', 37.5566000, 126.9228000,
+(@partner, '펫플래닛 하당 동물병원', '전남광주통합특별시 목포시 하당로 000 (시연용)', '061-000-0001', 34.8107000, 126.4207000,
  '평일 09:00-19:00 / 토 10:00-15:00 / 휴무: 일요일·공휴일',
  '내과·외과·피부과·치과 진료를 한 곳에서 받을 수 있는 시연용 제휴 동물병원이에요. 예약하면 대기 없이 진료받을 수 있어요.',
  '내과,외과,피부과,치과', '13:00-14:00');
 SET @h1 := LAST_INSERT_ID();
 INSERT INTO hospitals (user_id, name, address, phone, latitude, longitude, operating_hours, intro, departments, lunch_time) VALUES
-(@partner, '연남 우리동물병원', '서울 마포구 동교로 000 (시연용)', '02-000-0002', 37.5610000, 126.9232000,
+(@partner, '펫플래닛 옥암 동물병원', '전남광주통합특별시 목포시 옥암로 000 (시연용)', '061-000-0002', 34.8125000, 126.4447000,
  '매일 10:00-20:00 / 휴무: 연중무휴',
  '소형견·고양이 진료에 강점이 있는 시연용 제휴 병원이에요. 예방접종과 건강검진 예약이 많아요.',
  '내과,예방접종,건강검진', '12:30-13:30');
 SET @h2 := LAST_INSERT_ID();
 INSERT INTO hospitals (user_id, name, address, phone, latitude, longitude, operating_hours, intro, departments, lunch_time) VALUES
-(@partner, '신촌 해든 동물병원', '서울 서대문구 연세로 000 (시연용)', '02-000-0003', 37.5559000, 126.9375000,
+(@partner, '펫플래닛 용해 동물병원', '전남광주통합특별시 목포시 용해로 000 (시연용)', '061-000-0003', 34.8200000, 126.4080000,
  '평일 09:30-18:30 / 토 09:30-13:00 / 휴무: 일요일',
  '정형외과·안과 진료가 가능한 시연용 제휴 병원이에요.',
  '내과,외과,안과', '13:00-14:00');
@@ -99,17 +106,45 @@ SET @h3 := LAST_INSERT_ID();
 -- 3. 제휴 펫 호텔 (가상) + 객실 — docs/07: 미디엄 15kg / 라지 30kg
 -- ----------------------------------------------------------------------------
 INSERT INTO pet_hotels (user_id, name, address, phone, latitude, longitude) VALUES
-(@partner, '멍냥 스테이 홍대', '서울 마포구 와우산로 000 (시연용)', '02-000-0101', 37.5585000, 126.9262000);
+(@partner, '펫플래닛 스테이 하당', '전남광주통합특별시 목포시 평화로 000 (시연용)', '061-000-0101', 34.8080000, 126.4230000);
 SET @t1 := LAST_INSERT_ID();
 INSERT INTO pet_hotels (user_id, name, address, phone, latitude, longitude) VALUES
-(@partner, '포근 펫호텔 합정', '서울 마포구 토정로 000 (시연용)', '02-000-0102', 37.5500000, 126.9150000);
+(@partner, '펫플래닛 펫호텔 옥암', '전남광주통합특별시 목포시 남악로 000 (시연용)', '061-000-0102', 34.8150000, 126.4480000);
 SET @t2 := LAST_INSERT_ID();
 
 -- 지역 (주소 첫 두 단어) — 지역별 탐색 필터. patch_bus_transit.sql 의 칼럼이 먼저 필요해요
-UPDATE hospitals SET sido = '서울', sigungu = SUBSTRING_INDEX(SUBSTRING_INDEX(address, ' ', 2), ' ', -1)
-WHERE hospital_id IN (@h1, @h2, @h3);
-UPDATE pet_hotels SET sido = '서울', sigungu = SUBSTRING_INDEX(SUBSTRING_INDEX(address, ' ', 2), ' ', -1)
-WHERE hotel_id IN (@t1, @t2);
+UPDATE hospitals SET sido = '전남광주', sigungu = '목포시' WHERE hospital_id IN (@h1, @h2, @h3);
+UPDATE pet_hotels SET sido = '전남광주', sigungu = '목포시' WHERE hotel_id IN (@t1, @t2);
+
+-- 가까운 버스 정류장 · 거리 · 500m 안 정류장 수 (적재기 --access 와 같은 계산)
+-- bus_stops 가 비어 있으면(정류장 적재 전) NULL 로 남고, 나중에 적재기 --access 가 채워요
+UPDATE hospitals h SET h.nearest_stop_id = (
+    SELECT s.stop_id FROM bus_stops s
+    WHERE s.latitude BETWEEN h.latitude - 0.02 AND h.latitude + 0.02 AND s.longitude BETWEEN h.longitude - 0.025 AND h.longitude + 0.025
+    ORDER BY ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(h.longitude, h.latitude)) LIMIT 1)
+WHERE h.hospital_id IN (@h1, @h2, @h3);
+UPDATE hospitals h JOIN bus_stops s ON s.stop_id = h.nearest_stop_id
+SET h.nearest_stop_m = ROUND(ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(h.longitude, h.latitude)))
+WHERE h.hospital_id IN (@h1, @h2, @h3);
+UPDATE hospitals h SET h.stops_500m = (
+    SELECT COUNT(*) FROM bus_stops s
+    WHERE s.latitude BETWEEN h.latitude - 0.005 AND h.latitude + 0.005 AND s.longitude BETWEEN h.longitude - 0.006 AND h.longitude + 0.006
+      AND ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(h.longitude, h.latitude)) <= 500)
+WHERE h.hospital_id IN (@h1, @h2, @h3);
+
+UPDATE pet_hotels t SET t.nearest_stop_id = (
+    SELECT s.stop_id FROM bus_stops s
+    WHERE s.latitude BETWEEN t.latitude - 0.02 AND t.latitude + 0.02 AND s.longitude BETWEEN t.longitude - 0.025 AND t.longitude + 0.025
+    ORDER BY ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(t.longitude, t.latitude)) LIMIT 1)
+WHERE t.hotel_id IN (@t1, @t2);
+UPDATE pet_hotels t JOIN bus_stops s ON s.stop_id = t.nearest_stop_id
+SET t.nearest_stop_m = ROUND(ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(t.longitude, t.latitude)))
+WHERE t.hotel_id IN (@t1, @t2);
+UPDATE pet_hotels t SET t.stops_500m = (
+    SELECT COUNT(*) FROM bus_stops s
+    WHERE s.latitude BETWEEN t.latitude - 0.005 AND t.latitude + 0.005 AND s.longitude BETWEEN t.longitude - 0.006 AND t.longitude + 0.006
+      AND ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(t.longitude, t.latitude)) <= 500)
+WHERE t.hotel_id IN (@t1, @t2);
 
 INSERT INTO room_types (hotel_id, room_name, price_per_night, max_weight) VALUES (@t1, '미디엄 룸', 45000, 15);
 SET @room_m := LAST_INSERT_ID();
@@ -177,28 +212,28 @@ INSERT INTO hotel_bookmarks (user_id, hotel_id, created_at) VALUES
 -- 6. 주문 — 시연 계정: 배송완료 1건(→ 상품 리뷰 작성 가능) · 배송중 1건
 -- ----------------------------------------------------------------------------
 INSERT INTO orders (user_id, total_amount, receiver_name, receiver_phone, address, shipping_fee, status, created_at) VALUES
-(@demo, 32000 + 49000 + 3000, '김펫러버', '010-1234-5678', '서울 마포구 양화로 000 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 10 DAY);
+(@demo, 32000 + 49000 + 3000, '김펫러버', '010-1234-5678', '전남광주통합특별시 목포시 하당로 000 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 10 DAY);
 SET @o1 := LAST_INSERT_ID();
 INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (@o1, 1, 1, 32000), (@o1, 10, 1, 49000);
 
 INSERT INTO orders (user_id, total_amount, receiver_name, receiver_phone, address, shipping_fee, status, created_at) VALUES
-(@demo, 15000 * 2 + 3000, '김펫러버', '010-1234-5678', '서울 마포구 양화로 000 (시연용)', 3000, 'SHIPPING', NOW() - INTERVAL 1 DAY);
+(@demo, 15000 * 2 + 3000, '김펫러버', '010-1234-5678', '전남광주통합특별시 목포시 하당로 000 (시연용)', 3000, 'SHIPPING', NOW() - INTERVAL 1 DAY);
 SET @o2 := LAST_INSERT_ID();
 INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (@o2, 7, 2, 15000);
 
 -- 다른 이용자: 배송완료 주문 (아래 상품 리뷰의 근거)
 INSERT INTO orders (user_id, total_amount, receiver_name, receiver_phone, address, shipping_fee, status, created_at) VALUES
-(@r1, 32000 + 8500 + 3000, '콩이맘', '010-0000-0001', '서울 마포구 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 25 DAY);
+(@r1, 32000 + 8500 + 3000, '콩이맘', '010-0000-0001', '전남광주통합특별시 목포시 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 25 DAY);
 SET @o3 := LAST_INSERT_ID();
 INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (@o3, 1, 1, 32000), (@o3, 4, 1, 8500);
 INSERT INTO orders (user_id, total_amount, receiver_name, receiver_phone, address, shipping_fee, status, created_at) VALUES
-(@r2, 49000 + 7500 + 3000, '보리아빠', '010-0000-0002', '서울 마포구 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 18 DAY);
+(@r2, 49000 + 7500 + 3000, '보리아빠', '010-0000-0002', '전남광주통합특별시 목포시 (시연용)', 3000, 'DELIVERED', NOW() - INTERVAL 18 DAY);
 SET @o4 := LAST_INSERT_ID();
 INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (@o4, 10, 1, 49000), (@o4, 6, 1, 7500);
 
 -- ----------------------------------------------------------------------------
 -- 7. 리뷰 (모두 가상) — 병원 리뷰는 이용완료 예약이 있는 사람만, 상품 리뷰는 배송완료 주문이 있는 사람만
---    시연 계정은 리뷰를 비워 둬서, 발표 중에 직접 쓰는 장면을 보여줄 수 있어요 (병원 → 홍대 펫메디컬센터, 상품 → 연어 사료·이동장)
+--    시연 계정은 리뷰를 비워 둬서, 발표 중에 직접 쓰는 장면을 보여줄 수 있어요 (병원 → 펫플래닛 하당 동물병원, 상품 → 연어 사료·이동장)
 -- ----------------------------------------------------------------------------
 INSERT INTO reviews (user_id, target_type, target_id, pet_id, rating, content, created_at) VALUES
 (@r1, 'HOSPITAL', @h1, @p1, 5, '선생님이 차분하게 설명해 주셔서 믿음이 갔어요. 대기 없이 바로 진료받았어요.', NOW() - INTERVAL 19 DAY),
