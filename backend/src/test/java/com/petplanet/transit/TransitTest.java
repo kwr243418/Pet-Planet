@@ -15,8 +15,10 @@ class TransitTest {
 
     @Test
     void 주소에서_시도와_시군구를_뽑는다() {
-        assertEquals(new Region.Parsed("전남", "목포시"), Region.parse("전라남도 목포시 영산로 123"));
-        assertEquals(new Region.Parsed("전남", "무안군"), Region.parse("전남 무안군 청계면 영산로 1666"));
+        assertEquals(new Region.Parsed("전남광주", "목포시"), Region.parse("전라남도 목포시 영산로 123"));
+        assertEquals(new Region.Parsed("전남광주", "목포시"), Region.parse("전남광주통합특별시 목포시 영산로 123"));   // 2026-07-01 통합 후 주소
+        assertEquals(new Region.Parsed("전남광주", "무안군"), Region.parse("전남 무안군 청계면 영산로 1666"));
+        assertEquals(new Region.Parsed("전남광주", "광산구"), Region.parse("광주광역시 광산구 임방울대로 1"));
         assertEquals(new Region.Parsed("서울", "마포구"), Region.parse("서울 마포구 양화로 23길 12"));
         assertEquals(new Region.Parsed("서울", "마포구"), Region.parse("서울특별시 마포구 와우산로 000 (시연용)"));
         assertEquals(new Region.Parsed("경기", "수원시"), Region.parse("경기도 수원시 장안구 정조로 1"));
@@ -28,8 +30,9 @@ class TransitTest {
 
     @Test
     void 시도_이름은_짧은_이름으로_맞춘다() {
-        assertEquals("전남", Region.normalizeSido("전라남도"));
-        assertEquals("전남", Region.normalizeSido(" 전남 "));
+        assertEquals("전남광주", Region.normalizeSido("전라남도"));
+        assertEquals("전남광주", Region.normalizeSido(" 전남 "));
+        assertEquals("전남광주", Region.normalizeSido("광주특별시"));
         assertNull(Region.normalizeSido("목포"));
     }
 
@@ -40,7 +43,8 @@ class TransitTest {
         assertEquals("B", BusAccess.grade(350, 1, 6));
         assertEquals("C", BusAccess.grade(350, 1, 1));
         assertEquals("C", BusAccess.grade(700, 5, null));   // 노선 정보가 없으면 반경 500m 정류장 수로
-        assertEquals("D", BusAccess.grade(700, 1, null));
+        assertEquals("C", BusAccess.grade(499, 1, null));   // 노을공원 같은 곳 (걸어서 7분)
+        assertEquals("C", BusAccess.grade(700, 1, null));   // 800m 안이면 최소 C
         assertEquals("D", BusAccess.grade(1500, 9, 20));    // 800m 넘으면 노선이 많아도 D
         assertEquals("D", BusAccess.grade(null, 0, null));
     }

@@ -37,10 +37,10 @@ MySQL Workbench 라면 파일을 열고 ⚡(Execute) — safe update 모드에�
 -- 지역별 장소 수
 SELECT sido, sigungu, COUNT(*) FROM places GROUP BY sido, sigungu ORDER BY sido, sigungu;
 
--- 전남 목포시 장소 + 가장 가까운 버스 정류장, 정류장 가까운 순
+-- 전남광주 목포시 장소 + 가장 가까운 버스 정류장, 정류장 가까운 순
 SELECT p.name, bs.name AS stop_name, p.nearest_stop_m, p.stops_500m
 FROM places p LEFT JOIN bus_stops bs ON bs.stop_id = p.nearest_stop_id
-WHERE p.sido = '전남' AND p.sigungu = '목포시'
+WHERE p.sido = '전남광주' AND p.sigungu = '목포시'
 ORDER BY p.nearest_stop_m IS NULL, p.nearest_stop_m;
 
 -- 좌표 반경 500m 버스 정류장 (위·경도 범위로 먼저 좁혀 인덱스 사용)

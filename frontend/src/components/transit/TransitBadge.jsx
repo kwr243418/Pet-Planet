@@ -33,7 +33,7 @@ export function GradeLegend() {
         <b className="en">C</b> 정류장 800m 안
       </li>
       <li>
-        <b className="en">D</b> 정류장이 멀어요
+        <b className="en">D</b> 800m 넘게 멀어요
       </li>
     </ul>
   );

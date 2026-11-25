@@ -10,14 +10,14 @@ export const walkMinutes = (m) => (m == null ? null : Math.max(1, Math.ceil((m *
 /**
  * 거리 점수 200m 3 · 400m 2 · 800m 1 · 그 밖 0
  * + 1점: 노선 5개 이상 (노선 정보가 아직 없으면 반경 500m 정류장 4곳 이상)
- * 4점 A · 3점 B · 2점 C · 그 아래 D
+ * 4점 A · 3점 B · 1~2점 C · 0점(800m 넘음 · 정류장 없음) D
  */
 export function accessGrade(meters, stops500m, routeCount) {
   if (meters == null) return 'D';
   let pts = meters <= 200 ? 3 : meters <= 400 ? 2 : meters <= 800 ? 1 : 0;
   const wellServed = routeCount > 0 ? routeCount >= 5 : (stops500m ?? 0) >= 4;
   if (pts > 0 && wellServed) pts += 1;
-  return pts >= 4 ? 'A' : pts === 3 ? 'B' : pts === 2 ? 'C' : 'D';
+  return pts >= 4 ? 'A' : pts === 3 ? 'B' : pts >= 1 ? 'C' : 'D';
 }
 
 export const GRADE_LABEL = {

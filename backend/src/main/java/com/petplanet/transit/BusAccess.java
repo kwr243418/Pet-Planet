@@ -15,7 +15,7 @@ import java.util.List;
  * 등급 (docs/09):
  *   거리 점수  200m 이내 3 · 400m 이내 2 · 800m 이내 1 · 그 밖 0
  *   + 1점     정류장을 지나는 노선 5개 이상 (노선 정보가 아직 없으면 반경 500m 정류장 4곳 이상)
- *   4점 A · 3점 B · 2점 C · 그 아래 D
+ *   4점 A · 3점 B · 1~2점 C · 0점(800m 넘음 · 정류장 없음) D
  */
 public record BusAccess(String stopId, String stopName, Integer distanceM, Integer walkMin, Integer stops500m,
                         Integer routeCount, String grade, String gradeLabel) {
@@ -33,7 +33,7 @@ public record BusAccess(String stopId, String stopName, Integer distanceM, Integ
         int pts = meters <= 200 ? 3 : meters <= 400 ? 2 : meters <= 800 ? 1 : 0;
         boolean wellServed = routeCount != null && routeCount > 0 ? routeCount >= 5 : stops500m != null && stops500m >= 4;
         if (pts > 0 && wellServed) pts++;
-        return pts >= 4 ? "A" : pts == 3 ? "B" : pts == 2 ? "C" : "D";
+        return pts >= 4 ? "A" : pts == 3 ? "B" : pts >= 1 ? "C" : "D";
     }
 
     public static String label(String grade) {
@@ -68,7 +68,7 @@ public record BusAccess(String stopId, String stopName, Integer distanceM, Integ
     public static void filters(String a, String sido, String sigungu, Boolean nearStop, List<String> where, MapSqlParameterSource p) {
         if (sido != null && !sido.isBlank()) {
             String s = Region.normalizeSido(sido);
-            if (s == null) throw ApiException.validation("sido", "시/도 이름을 확인해 주세요. (예: 전남, 서울)");
+            if (s == null) throw ApiException.validation("sido", "시/도 이름을 확인해 주세요. (예: 전남광주, 서울)");
             where.add(a + ".sido = :sido");
             p.addValue("sido", s);
         }

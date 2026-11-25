@@ -96,7 +96,7 @@
 |---|---|---|
 | lat, lng | `34.79`, `126.38` | 내 위치 기준 반경 검색 (+ `distanceKm`) |
 | radiusKm | `1` \| `3` \| `5` | "출발점에서 거리" (기본 1, 최대 5) |
-| sido, sigungu | `전남`, `목포시` | 지역별 탐색 (`전라남도` 처럼 긴 이름도 받아요) |
+| sido, sigungu | `전남광주`, `목포시` | 지역별 탐색 (`전라남도` · `광주광역시` · `전남광주통합특별시`도 받아요) |
 | nearStop | `true` | 버스 정류장 300m 안만 |
 | categoryIds | `1,2` | 카테고리 OR (여러 개 선택) |
 | sizes | `SMALL,MEDIUM` | 선택한 크기를 **모두 동반 가능한** 장소 (`max_size >= 각 크기`) |
@@ -175,10 +175,10 @@ WHERE ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:lng, :lat)) <= :
 ORDER BY distance_km
 LIMIT ? OFFSET ?;
 
--- 지역별: 전남 목포시, 정류장 가까운 순
+-- 지역별: 전남광주 목포시, 정류장 가까운 순
 SELECT p.name, p.nearest_stop_m, bs.name AS stop_name
 FROM places p LEFT JOIN bus_stops bs ON bs.stop_id = p.nearest_stop_id
-WHERE p.sido = '전남' AND p.sigungu = '목포시'
+WHERE p.sido = '전남광주' AND p.sigungu = '목포시'
 ORDER BY p.nearest_stop_m IS NULL, p.nearest_stop_m;
 
 -- 평균 별점·리뷰 수

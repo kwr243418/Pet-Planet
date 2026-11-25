@@ -5,15 +5,17 @@ import { normalizeSido, parseRegion, regionLabel } from '../src/utils/region.js'
 import { accessGrade, kakaoPlaceSearchUrl, petBusAdvice, walkMinutes } from '../src/utils/transit.js';
 
 test('주소 → 시도 짧은 이름 · 시군구', () => {
-  assert.deepEqual(parseRegion('전라남도 목포시 영산로 123'), { sido: '전남', sigungu: '목포시' });
-  assert.deepEqual(parseRegion('전남 무안군 청계면 영산로 1666'), { sido: '전남', sigungu: '무안군' });
+  assert.deepEqual(parseRegion('전라남도 목포시 영산로 123'), { sido: '전남광주', sigungu: '목포시' });
+  assert.deepEqual(parseRegion('전남광주통합특별시 목포시 영산로 123'), { sido: '전남광주', sigungu: '목포시' });
+  assert.deepEqual(parseRegion('전남 무안군 청계면 영산로 1666'), { sido: '전남광주', sigungu: '무안군' });
   assert.deepEqual(parseRegion('서울특별시 마포구 와우산로 000 (시연용)'), { sido: '서울', sigungu: '마포구' });
   assert.deepEqual(parseRegion('경기도 수원시 장안구 정조로 1'), { sido: '경기', sigungu: '수원시' });
   assert.deepEqual(parseRegion('세종특별자치시 한누리대로 2130'), { sido: '세종', sigungu: '세종시' });
   assert.deepEqual(parseRegion('주소 없음'), { sido: null, sigungu: null });
-  assert.equal(normalizeSido('전라남도'), '전남');
+  assert.equal(normalizeSido('전라남도'), '전남광주');
+  assert.equal(normalizeSido('광주광역시'), '전남광주');
   assert.equal(normalizeSido('목포'), null);
-  assert.equal(regionLabel({ sido: '전남', sigungu: '목포시' }), '전남 목포시');
+  assert.equal(regionLabel({ sido: '전남광주', sigungu: '목포시' }), '전남광주 목포시');
 });
 
 test('접근성 등급: 거리 점수 + 노선(없으면 정류장 수) 1점', () => {
@@ -22,7 +24,8 @@ test('접근성 등급: 거리 점수 + 노선(없으면 정류장 수) 1점', (
   assert.equal(accessGrade(350, 1, 6), 'B');
   assert.equal(accessGrade(350, 1, 1), 'C');
   assert.equal(accessGrade(700, 5, null), 'C');
-  assert.equal(accessGrade(700, 1, null), 'D');
+  assert.equal(accessGrade(700, 1, null), 'C');
+  assert.equal(accessGrade(499, 1, null), 'C');
   assert.equal(accessGrade(1500, 9, 20), 'D');
   assert.equal(accessGrade(null, 0, null), 'D');
   assert.equal(walkMinutes(200), 4);

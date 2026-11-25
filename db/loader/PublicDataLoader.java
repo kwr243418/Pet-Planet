@@ -768,7 +768,7 @@ public class PublicDataLoader {
         if (!places.isEmpty()) {
             Map<String, Integer> grades = new TreeMap<>();
             for (PlaceRow p : places) {
-                if (!(p.address.contains("목포시") || p.address.contains("무안군"))) continue;
+                if (!(p.address.contains("목포시") || p.address.contains("무안군"))) continue;   // 주소가 전라남도 · 전남광주통합특별시 어느 쪽이어도
                 StopIndex.Near n = idx.near(p.lat, p.lng);
                 String g = grade(n.meters, n.within500);
                 grades.merge(g, 1, Integer::sum);
@@ -784,7 +784,7 @@ public class PublicDataLoader {
         if (m == null) return "D";
         int pts = m <= 200 ? 3 : m <= 400 ? 2 : m <= 800 ? 1 : 0;
         if (pts > 0 && within500 >= 4) pts++;
-        return pts >= 4 ? "A" : pts == 3 ? "B" : pts == 2 ? "C" : "D";
+        return pts >= 4 ? "A" : pts == 3 ? "B" : pts >= 1 ? "C" : "D";
     }
 
     /** 0.01° 격자로 정류장을 나눠 두고 주변 칸만 봐요 (정류장 20만 곳 × 시설 1만 곳도 몇 초) */
@@ -915,7 +915,7 @@ public class PublicDataLoader {
     }
 
     static final String[][] ACCESS_COLUMNS = {
-            {"sido", "VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남)' AFTER address"},
+            {"sido", "VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남광주)' AFTER address"},
             {"sigungu", "VARCHAR(30) NULL COMMENT '시/군/구 (목포시 · 무안군)' AFTER sido"},
             {"nearest_stop_id", "VARCHAR(30) NULL COMMENT '가장 가까운 버스 정류장' AFTER longitude"},
             {"nearest_stop_m", "INT NULL COMMENT '가장 가까운 정류장까지 직선거리(m)' AFTER nearest_stop_id"},
@@ -1007,10 +1007,12 @@ public class PublicDataLoader {
     static {
         String[][] a = {
                 {"서울", "서울특별시", "서울시", "서울"}, {"부산", "부산광역시", "부산시", "부산"}, {"대구", "대구광역시", "대구시", "대구"},
-                {"인천", "인천광역시", "인천시", "인천"}, {"광주", "광주광역시", "광주"}, {"대전", "대전광역시", "대전시", "대전"},
+                {"인천", "인천광역시", "인천시", "인천"}, {"대전", "대전광역시", "대전시", "대전"},
                 {"울산", "울산광역시", "울산시", "울산"}, {"세종", "세종특별자치시", "세종시", "세종"}, {"경기", "경기도", "경기"},
                 {"강원", "강원특별자치도", "강원도", "강원"}, {"충북", "충청북도", "충북"}, {"충남", "충청남도", "충남"},
-                {"전북", "전북특별자치도", "전라북도", "전북"}, {"전남", "전라남도", "전남"}, {"경북", "경상북도", "경북"},
+                {"전북", "전북특별자치도", "전라북도", "전북"}, {"경북", "경상북도", "경북"},
+                // 2026-07-01 전남 · 광주 통합 → 예전 주소도 같은 지역으로
+                {"전남광주", "전남광주통합특별시", "전남광주특별시", "광주특별시", "전남광주", "전라남도", "전남", "광주광역시", "광주"},
                 {"경남", "경상남도", "경남"}, {"제주", "제주특별자치도", "제주도", "제주"}};
         for (String[] row : a) for (int i = 1; i < row.length; i++) SIDO_ALIAS.put(row[i], row[0]);
     }

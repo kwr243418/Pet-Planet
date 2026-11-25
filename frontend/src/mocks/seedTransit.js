@@ -82,7 +82,7 @@ export function mockArrivals(stop, now = Date.now()) {
 /** 지역 · 정류장 300m 필터 (백엔드 BusAccess.filters 와 같은 규칙) — x 는 accessFields 가 붙은 응답 행 */
 export function matchRegion(x, query, fail) {
   if (query.sido) {
-    const sido = normalizeSido(query.sido) ?? fail(400, 'VALIDATION_ERROR', '입력값을 확인해 주세요.', [{ field: 'sido', message: '시/도 이름을 확인해 주세요. (예: 전남, 서울)' }]);
+    const sido = normalizeSido(query.sido) ?? fail(400, 'VALIDATION_ERROR', '입력값을 확인해 주세요.', [{ field: 'sido', message: '시/도 이름을 확인해 주세요. (예: 전남광주, 서울)' }]);
     if (x.sido !== sido) return false;
   }
   if (query.sigungu && x.sigungu !== String(query.sigungu).trim()) return false;

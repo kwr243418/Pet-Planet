@@ -6,7 +6,7 @@
 -- 1) 지하철 테이블(stations · place_stations)을 지워요.
 -- 2) 버스 테이블(bus_stops · bus_routes · bus_route_stops)을 만들어요. (schema_full.sql 로 새로 만든 DB 에는 이미 있어요)
 -- 3) places · hospitals · pet_hotels 에 지역(sido · sigungu)과 대중교통 접근성 칼럼을 더해요.
---    · sido / sigungu  : 주소 첫 두 단어 (전남 / 목포시) → 지역별 탐색 필터
+--    · sido / sigungu  : 주소 첫 두 단어 (전남광주 / 목포시) → 지역별 탐색 필터
 --    · nearest_stop_id : 가장 가까운 버스 정류장 (적재기가 미리 계산)
 --    · nearest_stop_m  : 그 정류장까지 직선거리(m)
 --    · stops_500m      : 반경 500m 안 정류장 수
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS bus_route_stops (
 -- 3) 지역 · 대중교통 접근성 칼럼
 -- ----------------------------------------------------------------------------
 ALTER TABLE places
-    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남)' AFTER address,
+    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남광주)' AFTER address,
     ADD COLUMN sigungu VARCHAR(30) NULL COMMENT '시/군/구 (목포시 · 무안군)' AFTER sido,
     ADD COLUMN nearest_stop_id VARCHAR(30) NULL COMMENT '가장 가까운 버스 정류장' AFTER longitude,
     ADD COLUMN nearest_stop_m INT NULL COMMENT '가장 가까운 정류장까지 직선거리(m)' AFTER nearest_stop_id,
@@ -79,7 +79,7 @@ ALTER TABLE places
         REFERENCES bus_stops(stop_id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE hospitals
-    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남)' AFTER address,
+    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남광주)' AFTER address,
     ADD COLUMN sigungu VARCHAR(30) NULL COMMENT '시/군/구 (목포시 · 무안군)' AFTER sido,
     ADD COLUMN nearest_stop_id VARCHAR(30) NULL COMMENT '가장 가까운 버스 정류장' AFTER longitude,
     ADD COLUMN nearest_stop_m INT NULL COMMENT '가장 가까운 정류장까지 직선거리(m)' AFTER nearest_stop_id,
@@ -89,7 +89,7 @@ ALTER TABLE hospitals
         REFERENCES bus_stops(stop_id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE pet_hotels
-    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남)' AFTER address,
+    ADD COLUMN sido VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남광주)' AFTER address,
     ADD COLUMN sigungu VARCHAR(30) NULL COMMENT '시/군/구 (목포시 · 무안군)' AFTER sido,
     ADD COLUMN nearest_stop_id VARCHAR(30) NULL COMMENT '가장 가까운 버스 정류장' AFTER longitude,
     ADD COLUMN nearest_stop_m INT NULL COMMENT '가장 가까운 정류장까지 직선거리(m)' AFTER nearest_stop_id,
@@ -109,7 +109,6 @@ INSERT INTO sido_alias (alias, sido) VALUES
 ('부산광역시', '부산'), ('부산시', '부산'), ('부산', '부산'),
 ('대구광역시', '대구'), ('대구시', '대구'), ('대구', '대구'),
 ('인천광역시', '인천'), ('인천시', '인천'), ('인천', '인천'),
-('광주광역시', '광주'), ('광주', '광주'),
 ('대전광역시', '대전'), ('대전시', '대전'), ('대전', '대전'),
 ('울산광역시', '울산'), ('울산시', '울산'), ('울산', '울산'),
 ('세종특별자치시', '세종'), ('세종시', '세종'), ('세종', '세종'),
@@ -118,7 +117,9 @@ INSERT INTO sido_alias (alias, sido) VALUES
 ('충청북도', '충북'), ('충북', '충북'),
 ('충청남도', '충남'), ('충남', '충남'),
 ('전북특별자치도', '전북'), ('전라북도', '전북'), ('전북', '전북'),
-('전라남도', '전남'), ('전남', '전남'),
+-- 2026-07-01 전남 · 광주 → 전남광주통합특별시 (예전 주소도 같은 지역)
+('전남광주통합특별시', '전남광주'), ('전남광주특별시', '전남광주'), ('광주특별시', '전남광주'), ('전남광주', '전남광주'),
+('전라남도', '전남광주'), ('전남', '전남광주'), ('광주광역시', '전남광주'), ('광주', '전남광주'),
 ('경상북도', '경북'), ('경북', '경북'),
 ('경상남도', '경남'), ('경남', '경남'),
 ('제주특별자치도', '제주'), ('제주도', '제주'), ('제주', '제주');

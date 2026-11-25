@@ -36,7 +36,7 @@ bus_stops (stop_id PK, name, latitude, longitude, city_code, city_name, collecte
 bus_routes (route_id PK, route_no, route_name, sido, sigungu)
 bus_route_stops (route_id FK, stop_seq, stop_id FK)  PK(route_id, stop_seq)   -- 노선 ↔ 정류장 N:M + 순서
 places / hospitals / pet_hotels
-  + sido, sigungu                 -- 주소 첫 두 단어 (전남 / 목포시), INDEX(sido, sigungu)
+  + sido, sigungu                 -- 주소 첫 두 단어 (전남광주 / 목포시), INDEX(sido, sigungu)
   + nearest_stop_id FK → bus_stops (ON DELETE SET NULL)
   + nearest_stop_m                -- 가장 가까운 정류장까지 직선거리(m)
   + stops_500m                    -- 반경 500m 안 정류장 수
@@ -44,7 +44,8 @@ places / hospitals / pet_hotels
 
 - **왜 미리 계산해 두나**: 정류장이 20만 곳이라 목록을 볼 때마다 장소 × 정류장 거리를 계산하면 느려요. 적재기가 0.01° 격자로 정류장을 나눠 두고, 장소 1만 3천 곳의 가장 가까운 정류장을 몇 초 만에 계산해서 칼럼에 저장해요. 목록 SQL 은 `LEFT JOIN bus_stops` 한 번이면 돼요.
 - **노선 수**: `(SELECT COUNT(DISTINCT route_id) FROM bus_route_stops WHERE stop_id = nearest_stop_id)` — 노선 데이터가 들어오면 자동으로 반영돼요.
-- **지역 규칙** (`Region.parse` · `utils/region.js` · `patch_bus_transit.sql` · 적재기 모두 같음): 주소 첫 단어를 짧은 시/도 이름으로(`전라남도`·`전남` → `전남`), 둘째 단어가 시·군·구로 끝나면 시/군/구, 세종은 `세종시`.
+- **지역 규칙** (`Region.parse` · `utils/region.js` · `patch_bus_transit.sql` · 적재기 모두 같음): 주소 첫 단어를 짧은 시/도 이름으로, 둘째 단어가 시·군·구로 끝나면 시/군/구, 세종은 `세종시`.
+- **전남광주통합특별시**: 2026-07-01 전남 · 광주가 통합돼 주소가 `전남광주통합특별시 목포시 …`로 바뀌었어요. 데이터마다 예전 주소(`전라남도`, `광주광역시`)와 새 주소가 섞여 있어서 모두 `전남광주` 한 지역으로 묶어요 (광주의 5개 구도 이 아래 시군구).
 
 실행 순서 (새 DB):
 ```bash
@@ -65,7 +66,7 @@ cd db/loader && java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
 |---|---|
 | 거리 | 가장 가까운 정류장 200m 이내 3점 · 400m 이내 2점 · 800m 이내 1점 · 그 밖 0점 |
 | +1점 | 그 정류장을 지나는 노선 5개 이상 (노선 정보가 없으면 반경 500m 정류장 4곳 이상) |
-| 등급 | 4점 **A** 아주 가까워요 · 3점 **B** 버스로 가기 편해요 · 2점 **C** 조금 걸어요 · 그 아래 **D** 차량 이동 추천 |
+| 등급 | 4점 **A** 아주 가까워요 · 3점 **B** 버스로 가기 편해요 · 1~2점 **C** 조금 걸어요(800m 안) · 0점 **D** 차량 이동 추천(800m 넘음 · 2km 안에 정류장 없음) |
 
 도보 시간 = 거리 × 1.25(길 우회) ÷ 분당 75m(4.5km/h). 백엔드 `BusAccess`, 프론트 `utils/transit.js`, 적재기 dry-run 이 같은 규칙이에요.
 
@@ -74,14 +75,14 @@ cd db/loader && java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/regions?type=place\|hospital\|hotel` | `[{ sido, count, sigungus: [{ name, count }] }]` — 데이터가 있는 지역만, 시/도는 표준 순서 |
-| GET | `/places` · `/hospitals` · `/pet-hotels` | 공통 추가 파라미터: `sido`, `sigungu`, `nearStop=true`(정류장 300m 안). 장소는 `sort=transit`(정류장 가까운 순). `stationId` · `lines` 는 삭제 |
+| GET | `/places` · `/hospitals` · `/pet-hotels` | 공통 추가 파라미터: `sido`(예: `전남광주`, `전라남도`·`광주광역시`도 받음), `sigungu`, `nearStop=true`(정류장 300m 안). 장소는 `sort=transit`(정류장 가까운 순). `stationId` · `lines` 는 삭제 |
 | GET | `/bus-stops/nearby?lat=&lng=&radiusM=500&limit=5` | 가까운 정류장 `[{ stopId, name, lat, lng, cityCode, cityName, distanceM, walkMin, routeCount }]` (반경 최대 1km) |
 | GET | `/bus-stops/{stopId}/routes` | 지나가는 노선 `[{ routeId, routeNo, routeName }]` |
 | GET | `/bus-stops/{stopId}/arrivals` | `{ stopId, stopName, status: OK\|NO_KEY\|NO_CITY\|UNAVAILABLE, message, fetchedAt, arrivals: [{ routeNo, routeType, minutes, remainingStops, lowFloor }] }` |
 
 장소 · 병원 · 호텔 응답에 추가:
 ```jsonc
-"sido": "전남", "sigungu": "목포시",
+"sido": "전남광주", "sigungu": "목포시",
 "busAccess": { "stopId": "…", "stopName": "목포역", "distanceM": 120, "walkMin": 2,
                "stops500m": 6, "routeCount": 0, "grade": "A", "gradeLabel": "버스 정류장이 아주 가까워요" }
 // 적재기로 정류장을 계산하기 전이면 busAccess = null, 2km 안에 정류장이 없으면 stopId = null · grade = "D"

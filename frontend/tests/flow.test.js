@@ -71,7 +71,7 @@ test('S02 지역별: 시도 → 시군구 목록과 필터, 정류장 300m · �
   const transit = api.handle('GET', '/places', { query: { sido: '서울', sort: 'transit', size: 50 } }).content.map((p) => p.busAccess.distanceM ?? Infinity);
   assert.deepEqual(transit, [...transit].sort((a, b) => a - b));
   expectError(() => api.handle('GET', '/places', { query: { sido: '목포' } }), 400, 'VALIDATION_ERROR');
-  assert.equal(api.handle('GET', '/places', { query: { sido: '전남' } }).totalElements, 0);
+  assert.equal(api.handle('GET', '/places', { query: { sido: '전남' } }).totalElements, 0); // 전남 → 전남광주 (통합), 시드엔 없음
 });
 
 test('버스: 근처 정류장 · 노선 · 실시간 도착(가상)', () => {
