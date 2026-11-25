@@ -6,28 +6,28 @@ const OWNER_ID = 5; // seed.js 의 BUSINESS 계정 — 시연 병원·호텔 사
 
 export const HOSPITALS = [
   {
-    hospitalId: 1, ownerId: OWNER_ID, name: '홍대 펫메디컬센터', address: '서울 마포구 양화로 000 (시연용)', phone: '02-000-0001',
-    lat: 37.5566, lng: 126.9228, operatingHours: '평일 09:00-19:00 / 토 10:00-15:00 / 휴무: 일요일·공휴일',
+    hospitalId: 1, ownerId: OWNER_ID, name: '펫플래닛 하당 동물병원', address: '전남광주통합특별시 목포시 하당로 000 (시연용)', phone: '061-000-0001',
+    lat: 34.8107, lng: 126.4207, operatingHours: '평일 09:00-19:00 / 토 10:00-15:00 / 휴무: 일요일·공휴일',
     intro: '내과·외과·피부과·치과 진료를 한 곳에서 받을 수 있는 시연용 제휴 동물병원이에요. 예약하면 대기 없이 진료받을 수 있어요.',
     departments: ['내과', '외과', '피부과', '치과'], lunchTime: '13:00-14:00',
   },
   {
-    hospitalId: 2, ownerId: OWNER_ID, name: '연남 우리동물병원', address: '서울 마포구 동교로 000 (시연용)', phone: '02-000-0002',
-    lat: 37.561, lng: 126.9232, operatingHours: '매일 10:00-20:00 / 휴무: 연중무휴',
+    hospitalId: 2, ownerId: OWNER_ID, name: '펫플래닛 옥암 동물병원', address: '전남광주통합특별시 목포시 옥암로 000 (시연용)', phone: '061-000-0002',
+    lat: 34.8125, lng: 126.4447, operatingHours: '매일 10:00-20:00 / 휴무: 연중무휴',
     intro: '소형견·고양이 진료에 강점이 있는 시연용 제휴 병원이에요. 예방접종과 건강검진 예약이 많아요.',
     departments: ['내과', '예방접종', '건강검진'], lunchTime: '12:30-13:30',
   },
   {
-    hospitalId: 3, ownerId: OWNER_ID, name: '신촌 해든 동물병원', address: '서울 서대문구 연세로 000 (시연용)', phone: '02-000-0003',
-    lat: 37.5559, lng: 126.9375, operatingHours: '평일 09:30-18:30 / 토 09:30-13:00 / 휴무: 일요일',
+    hospitalId: 3, ownerId: OWNER_ID, name: '펫플래닛 용해 동물병원', address: '전남광주통합특별시 목포시 용해로 000 (시연용)', phone: '061-000-0003',
+    lat: 34.82, lng: 126.408, operatingHours: '평일 09:30-18:30 / 토 09:30-13:00 / 휴무: 일요일',
     intro: '정형외과·안과 진료가 가능한 시연용 제휴 병원이에요.',
     departments: ['내과', '외과', '안과'], lunchTime: '13:00-14:00',
   },
 ];
 
 export const PET_HOTELS = [
-  { hotelId: 1, ownerId: OWNER_ID, name: '멍냥 스테이 홍대', address: '서울 마포구 와우산로 000 (시연용)', phone: '02-000-0101', lat: 37.5585, lng: 126.9262 },
-  { hotelId: 2, ownerId: OWNER_ID, name: '포근 펫호텔 합정', address: '서울 마포구 토정로 000 (시연용)', phone: '02-000-0102', lat: 37.55, lng: 126.915 },
+  { hotelId: 1, ownerId: OWNER_ID, name: '펫플래닛 스테이 하당', address: '전남광주통합특별시 목포시 평화로 000 (시연용)', phone: '061-000-0101', lat: 34.808, lng: 126.423 },
+  { hotelId: 2, ownerId: OWNER_ID, name: '펫플래닛 펫호텔 옥암', address: '전남광주통합특별시 목포시 남악로 000 (시연용)', phone: '061-000-0102', lat: 34.815, lng: 126.448 },
 ];
 
 // 객실 (최대 수용 몸무게 maxWeight kg) — docs/07: 미디엄 15kg / 라지 30kg
@@ -99,13 +99,13 @@ export function commerceSeed(now = new Date()) {
   const hotelBookmarks = [{ bookmarkId: 1, userId: 1, hotelId: 2, createdAt: at(-35, '10:00', now) }];
   const orders = [
     // 데모 계정: 배송완료(→ 상품 리뷰 작성 가능) · 배송중
-    { orderId: 1, userId: 1, status: 'DELIVERED', receiverName: '박민서', receiverPhone: '010-1234-5678', address: '서울 마포구 양화로 000 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-10, '12:00', now),
+    { orderId: 1, userId: 1, status: 'DELIVERED', receiverName: '박민서', receiverPhone: '010-1234-5678', address: '전남광주통합특별시 목포시 하당로 000 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-10, '12:00', now),
       items: [{ productId: 1, quantity: 1, price: 32000 }, { productId: 10, quantity: 1, price: 49000 }] },
-    { orderId: 2, userId: 1, status: 'SHIPPING', receiverName: '박민서', receiverPhone: '010-1234-5678', address: '서울 마포구 양화로 000 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-1, '12:00', now),
+    { orderId: 2, userId: 1, status: 'SHIPPING', receiverName: '박민서', receiverPhone: '010-1234-5678', address: '전남광주통합특별시 목포시 하당로 000 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-1, '12:00', now),
       items: [{ productId: 7, quantity: 2, price: 15000 }] },
-    { orderId: 3, userId: 2, status: 'DELIVERED', receiverName: '박댕댕', receiverPhone: '010-0000-0002', address: '서울 마포구 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-25, '12:00', now),
+    { orderId: 3, userId: 2, status: 'DELIVERED', receiverName: '박댕댕', receiverPhone: '010-0000-0002', address: '전남광주통합특별시 목포시 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-25, '12:00', now),
       items: [{ productId: 1, quantity: 1, price: 32000 }, { productId: 4, quantity: 1, price: 8500 }] },
-    { orderId: 4, userId: 3, status: 'DELIVERED', receiverName: '정꼬리', receiverPhone: '010-0000-0003', address: '서울 마포구 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-18, '12:00', now),
+    { orderId: 4, userId: 3, status: 'DELIVERED', receiverName: '정꼬리', receiverPhone: '010-0000-0003', address: '전남광주통합특별시 목포시 (시연용)', shippingFee: SHIPPING_FEE, createdAt: at(-18, '12:00', now),
       items: [{ productId: 10, quantity: 1, price: 49000 }, { productId: 6, quantity: 1, price: 7500 }] },
   ].map((o) => ({ ...o, totalAmount: o.items.reduce((s, i) => s + i.price * i.quantity, 0) + o.shippingFee }));
   const review = (reviewId, userId, targetType, targetId, petId, rating, content, daysAgo) => {

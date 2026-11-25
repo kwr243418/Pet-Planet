@@ -43,10 +43,11 @@ test('동물병원: 제휴 목록·상세·시드 예약으로 내일 14:00 마�
   const list = api.handle('GET', '/hospitals', { query: { partner: true } });
   assert.equal(list.totalElements, 3);
   const h1 = api.handle('GET', '/hospitals/1');
-  assert.equal(h1.name, '홍대 펫메디컬센터');
+  assert.equal(h1.name, '펫플래닛 하당 동물병원');
   assert.equal(h1.reviewCount, 3);
   assert.ok(h1.busAccess?.stopName);
-  assert.equal(h1.sido, '서울');
+  assert.equal(h1.sido, '전남광주');
+  assert.equal(h1.sigungu, '목포시');
   const tomorrow = seoulDate(1);
   const { slots } = api.handle('GET', '/hospitals/1/available-times', { query: { date: tomorrow } });
   assert.equal(slots.find((x) => x.time === '14:00').available, false);
@@ -62,7 +63,7 @@ test('진료 예약: 같은 시간 중복 409 · 취소 후 다시 가능 · 지
   expectError(() => api.handle('POST', '/hospital-reservations', { body: { hospitalId: 1, petId: a.petId, reservationDate: when } }), 401);
   const r = a.call('POST', '/hospital-reservations', { body: { hospitalId: 1, petId: a.petId, reservationDate: when } });
   assert.equal(r.status, 'PENDING');
-  assert.equal(r.hospitalName, '홍대 펫메디컬센터');
+  assert.equal(r.hospitalName, '펫플래닛 하당 동물병원');
   expectError(() => b.call('POST', '/hospital-reservations', { body: { hospitalId: 1, petId: b.petId, reservationDate: when } }), 409, 'TIME_SLOT_TAKEN');
   expectError(() => b.call('POST', '/hospital-reservations', { body: { hospitalId: 1, petId: a.petId, reservationDate: when } }), 403); // 남의 반려동물
   expectError(() => b.call('POST', '/hospital-reservations', { body: { hospitalId: 1, petId: b.petId, reservationDate: `${seoulDate(2)}T13:00:00+09:00` } }), 400); // 점심시간
@@ -90,7 +91,7 @@ test('예약 상태: 시연 모드 본인 진행 PENDING→CONFIRMED→COMPLETED
   assert.equal(created.visitDate, seoulDate(3));
   expectError(() => a.call('POST', '/reviews', { body: review }), 409, 'DUPLICATE_REVIEW');
   assert.equal(a.call('GET', '/users/me/hospital-reservations')[0].reviewed, true);
-  assert.equal(a.call('GET', '/users/me/reviews', { query: { targetType: 'HOSPITAL' } })[0].targetName, '신촌 해든 동물병원');
+  assert.equal(a.call('GET', '/users/me/reviews', { query: { targetType: 'HOSPITAL' } })[0].targetName, '펫플래닛 용해 동물병원');
 });
 
 test('펫 호텔: 체중 초과 OVERWEIGHT · 기간 겹침 BOOKED · 예약 충돌 409', () => {

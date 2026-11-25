@@ -32,8 +32,8 @@ test('모든 시드 장소에 지역(시도 · 시군구)과 가장 가까운 �
   const all = api.handle('GET', '/places', { query: { size: 50 } }).content;
   assert.equal(all.length, PLACES.length);
   for (const p of all) {
-    assert.equal(p.sido, '서울');
-    assert.match(p.sigungu, /구$/);
+    assert.ok(['서울', '전남광주'].includes(p.sido), p.name);
+    assert.match(p.sigungu, /[구시]$/);
     assert.ok(['A', 'B', 'C', 'D'].includes(p.busAccess.grade), `${p.name} grade`);
   }
   // 지하철 필드는 더 이상 없어요
@@ -60,18 +60,20 @@ test('S02 지역별: 시도 → 시군구 목록과 필터, 정류장 300m · �
   const api = createMockServer({ storage: mem() });
   const regions = api.handle('GET', '/regions', { query: { type: 'place' } });
   const seoul = regions.find((r) => r.sido === '서울');
-  assert.equal(seoul.count, PLACES.length);
+  const seoulPlaces = PLACES.filter((p) => p.address.startsWith('서울')).length;
+  assert.equal(seoul.count, seoulPlaces);
+  assert.equal(regions.find((r) => r.sido === '전남광주').sigungus[0].name, '목포시'); // 11/25 목포 시연 장소
   const mapo = seoul.sigungus.find((g) => g.name === '마포구');
   const res = api.handle('GET', '/places', { query: { sido: '서울특별시', sigungu: '마포구', size: 50 } });
   assert.equal(res.totalElements, mapo.count);
   assert.ok(res.content.every((p) => p.sigungu === '마포구'));
   const near = api.handle('GET', '/places', { query: { sido: '서울', nearStop: true, size: 50 } });
-  assert.ok(near.totalElements > 0 && near.totalElements < PLACES.length);
+  assert.ok(near.totalElements > 0 && near.totalElements < seoulPlaces);
   assert.ok(near.content.every((p) => p.busAccess.distanceM <= 300));
   const transit = api.handle('GET', '/places', { query: { sido: '서울', sort: 'transit', size: 50 } }).content.map((p) => p.busAccess.distanceM ?? Infinity);
   assert.deepEqual(transit, [...transit].sort((a, b) => a - b));
   expectError(() => api.handle('GET', '/places', { query: { sido: '목포' } }), 400, 'VALIDATION_ERROR');
-  assert.equal(api.handle('GET', '/places', { query: { sido: '전남' } }).totalElements, 0); // 전남 → 전남광주 (통합), 시드엔 없음
+  assert.equal(api.handle('GET', '/places', { query: { sido: '전남' } }).totalElements, PLACES.length - seoulPlaces); // 전남 → 전남광주 (통합) = 목포 시연 장소
 });
 
 test('버스: 근처 정류장 · 노선 · 실시간 도착(가상)', () => {

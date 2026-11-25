@@ -11,7 +11,11 @@ import { HOSPITALS, PET_HOTELS } from './seedCommerce.js';
 const SUFFIX = ['입구', '사거리', '앞', '중앙', '삼거리', '정문', '건너편', '공원'];
 // 장소마다 가장 가까운 정류장 거리(m)를 다르게 → 등급 A~D 가 고루 나오게
 const NEAREST_M = [90, 160, 240, 330, 450, 620, 780, 1200];
-const ROUTE_POOL = ['271', '273', '602', '6716', '7011', '7016', '7711', '마포08', '마포09', '서대문05', '146', '360', '740', '4412', '3412'];
+const SEOUL_ROUTES = ['271', '273', '602', '6716', '7011', '7016', '7711', '마포08', '마포09', '서대문05', '146', '360', '740', '4412', '3412'];
+const MOKPO_ROUTES = ['1', '1-2', '6', '9', '13', '15', '20', '60', '66', '100', '112', '200', '300', '500', '800'];
+const isMokpo = (address) => /목포|무안/.test(address ?? '');
+const poolOf = (address) => (isMokpo(address) ? MOKPO_ROUTES : SEOUL_ROUTES);
+const cityOf = (address) => (isMokpo(address) ? '목포시' : '서울특별시');
 
 function makeStops() {
   const stops = [];
@@ -23,19 +27,22 @@ function makeStops() {
     const d = NEAREST_M[i % NEAREST_M.length];
     const ang = (i * 47 * Math.PI) / 180;
     const word = p.name.split(' ')[0];
-    const routes = ROUTE_POOL.filter((_, k) => (k + i) % (2 + (i % 4)) === 0).slice(0, 1 + (i % 7));
+    const routes = poolOf(p.address).filter((_, k) => (k + i) % (2 + (i % 4)) === 0).slice(0, 1 + (i % 7));
     const o = offsetMeters(p.lat, p.lng, Math.cos(ang) * d, Math.sin(ang) * d);
-    add(p, `${word}${SUFFIX[i % SUFFIX.length]}`, o.lat, o.lng, '서울특별시', routes);
+    add(p, `${word}${SUFFIX[i % SUFFIX.length]}`, o.lat, o.lng, cityOf(p.address), routes);
     // 짝수 번째 장소 주변에는 정류장을 몇 곳 더 (반경 500m 정류장 수가 달라지게)
     for (let k = 0; k < (i % 2 === 0 ? 3 : 0); k++) {
       const a2 = ang + ((k + 1) * Math.PI) / 2;
       const o2 = offsetMeters(p.lat, p.lng, Math.cos(a2) * (d + 120), Math.sin(a2) * (d + 120));
-      add(p, `${word}${SUFFIX[(i + k + 1) % SUFFIX.length]}`, o2.lat, o2.lng, '서울특별시', routes.slice(0, 2));
+      add(p, `${word}${SUFFIX[(i + k + 1) % SUFFIX.length]}`, o2.lat, o2.lng, cityOf(p.address), routes.slice(0, 2));
     }
   });
   [...HOSPITALS, ...PET_HOTELS].forEach((h, i) => {
     const o = offsetMeters(h.lat, h.lng, 60 + i * 15, -40);
-    add(h, `${h.name.split(' ')[0]}${SUFFIX[(i + 2) % SUFFIX.length]}`, o.lat, o.lng, '서울특별시', ROUTE_POOL.slice(i, i + 6));
+    // 시연 병원 · 호텔 이름은 "펫플래닛 하당 …" → 정류장 이름은 동네(두 번째 단어)로
+    const words = h.name.split(' ');
+    const word = words[0] === '펫플래닛' ? words[1] : words[0];
+    add(h, `${word}${SUFFIX[(i + 2) % SUFFIX.length]}`, o.lat, o.lng, cityOf(h.address), poolOf(h.address).slice(i, i + 6));
   });
   // 시연 위치(목포역 · 국립목포대학교) 주변 — 내 위치 기준 화면 확인용
   [
