@@ -6,7 +6,7 @@ const SITE = '펫 플래닛';
 /** 브라우저 탭 제목: "장소 탐색 · 펫 플래닛" */
 export function usePageTitle(title) {
   useEffect(() => {
-    document.title = title ? `${title} · ${SITE}` : `${SITE} · 역에서 시작하는 반려생활`;
+    document.title = title ? `${title} · ${SITE}` : `${SITE} · 반려동물과 함께 가는 길`;
   }, [title]);
 }
 

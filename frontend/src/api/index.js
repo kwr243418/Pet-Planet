@@ -59,7 +59,7 @@ export const reviewApi = {
 // ─────────────────────────────────────────────────────────────
 
 export const hospitalApi = {
-  list: (q) => http.get('/hospitals', q), // { stationId?, keyword?, page?, size? }
+  list: (q) => http.get('/hospitals', q), // { stationId? | lat?+lng?, radiusKm?, keyword?, page?, size? }
   get: (hospitalId) => http.get(`/hospitals/${hospitalId}`),
   availableTimes: (hospitalId, date) => http.get(`/hospitals/${hospitalId}/available-times`, { date }),
   reserve: ({ hospitalId, petId, reservationDate }) => http.post('/hospital-reservations', { hospitalId, petId, reservationDate }),

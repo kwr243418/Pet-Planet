@@ -6,7 +6,7 @@ export const DEFAULT_FILTERS = { categoryIds: [], sizes: [], indoor: 'ALL', radi
 export const INDOOR_QUERY = { ALL: undefined, INDOOR: ['INDOOR', 'BOTH'], OUTDOOR: ['OUTDOOR', 'BOTH'] };
 
 /** S02 필터: 카테고리(여러 개) · 동반 가능 크기 · 실내·실외 · 역에서 거리 · 초기화 */
-export default function FilterPanel({ categories, value, onChange }) {
+export default function FilterPanel({ categories, value, onChange, radiusOptions = [0.5, 1], radiusLabel = '역에서 거리' }) {
   const set = (k) => (v) => onChange({ ...value, [k]: v });
   return (
     <div className="filter-panel card">
@@ -42,16 +42,8 @@ export default function FilterPanel({ categories, value, onChange }) {
         />
       </div>
       <div className="filter-panel__group">
-        <p className="filter-panel__label">역에서 거리</p>
-        <OptionGroup
-          label="역에서 거리"
-          value={value.radiusKm}
-          onChange={set('radiusKm')}
-          options={[
-            { value: 0.5, label: '0.5km' },
-            { value: 1, label: '1km' },
-          ]}
-        />
+        <p className="filter-panel__label">{radiusLabel}</p>
+        <OptionGroup label={radiusLabel} value={value.radiusKm} onChange={set('radiusKm')} options={radiusOptions.map((r) => ({ value: r, label: `${r}km` }))} />
       </div>
       <button type="button" className="text-link filter-panel__reset" onClick={() => onChange(DEFAULT_FILTERS)}>
         초기화

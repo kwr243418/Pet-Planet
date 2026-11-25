@@ -9,6 +9,8 @@ import { hospitalApi, reviewApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import { usePageTitle } from '../../hooks/usePage.js';
 import { formatDate } from '../../utils/format.js';
+import RouteGuide from '../../components/nearby/RouteGuide.jsx';
+import { readOrigin } from '../../utils/origin.js';
 import './fe2.css';
 
 const PAGE_SIZE = 3;
@@ -99,6 +101,9 @@ export default function HospitalDetailPage() {
             <dd>{hospital.phone ?? '-'}</dd>
           </dl>
         </section>
+
+        {/* 가는 방법 (주변 탐색에서 고른 출발점 기준) */}
+        <RouteGuide origin={readOrigin()} dest={{ name: hospital.name, lat: hospital.lat, lng: hospital.lng }} />
 
         {/* 탭 */}
         <div className="fe2-tabs">

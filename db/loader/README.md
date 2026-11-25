@@ -47,6 +47,23 @@ java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
 - 실행하면 `hospitals.license_no`, `pet_hotels.license_no` 칼럼(UNIQUE)이 없을 때 자동으로 추가돼요 (`db/patch_be2_public_data.sql` 과 같은 내용).
   `hospital_id` · `hotel_id` 는 그대로 AUTO_INCREMENT 예요. 관리번호(18자리)는 자바스크립트 숫자 범위를 넘어서 PK·API ID 로 쓰지 않아요.
 
+## 주변 탐색용 동반 장소 적재 (`--places`, 11/25 추가)
+
+한국문화정보원 파일에서 **반려동물 동반 가능 = Y** 인 카페 · 식당 · 숙소(펜션·호텔) · 여행지 · 문화시설(박물관·미술관·문예회관)을 `places`에 넣어요.
+약국 · 병원 · 용품 · 미용 · 위탁은 "장소"가 아니라 넣지 않아요. 지하철역 반경 1km 안이면 `place_stations` 매핑도 같이 만들어요.
+
+```bash
+cd db/loader
+java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --kcisa kcisa.csv --places --dry-run   # 결과만 확인
+java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --kcisa kcisa.csv --places             # DB 저장
+```
+
+- 같은 시설은 `places.source_key` = MD5(시설명|주소)로 찾아 갱신해요 (여러 번 실행해도 중복 없음).
+- 카테고리 `여행지`, `문화시설`이 없으면 자동으로 추가돼요.
+- 입장 가능 크기 → `allowed_size`(SMALL · MEDIUM · LARGE), 실내/실외 여부 → `indoor_outdoor`(INDOOR · OUTDOOR · BOTH).
+- ⚠️ `seed_dev_places.sql`은 places를 모두 지우고 다시 넣어요 → **seed 다음에** 적재기를 실행하세요.
+- 11/25 받은 파일 기준: 동반 가능 67,839행 중 장소 카테고리 약 2,380곳, 목포시 · 무안군 19곳(카페 5 · 여행지 13 · 펜션 1).
+
 ## 결과 (2026-11-24 받은 파일 기준, dry-run)
 
 | | 전체 행 | 저장 | 영업 아님 | 좌표 없음 | 한국문화정보원 매칭 | 영업시간 있음 |

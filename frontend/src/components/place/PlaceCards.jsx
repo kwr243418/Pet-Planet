@@ -25,7 +25,7 @@ export function CategoryBanner({ categoryId, imageUrl, height = 120, children })
 }
 
 /** 장소 설명 한 줄: "카페 · 소·중형 · 실내" */
-export const placeMeta = (p) => [p.categoryName ?? categoryMeta(p.categoryId).label, MAX_SIZE_SHORT[p.maxSize], INDOOR_SHORT[p.indoorType]].join(' · ');
+export const placeMeta = (p) => [p.categoryName ?? categoryMeta(p.categoryId).label, MAX_SIZE_SHORT[p.maxSize], INDOOR_SHORT[p.indoorType]].filter(Boolean).join(' · ');
 
 /** S02 결과 카드: 번호 · 하트 · 카테고리 · 장소명 · 카테고리/크기/실내외 · 거리 막대 + km */
 export function PlaceResultCard({ place, index, radiusKm, selected, onHover, onBookmarkChange, query = '' }) {

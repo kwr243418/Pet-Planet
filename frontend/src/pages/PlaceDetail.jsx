@@ -10,6 +10,8 @@ import { useToast } from '../components/common/Toast.jsx';
 import { HeartIcon, useBookmarkToggle } from '../components/place/BookmarkButton.jsx';
 import { ReviewCard, ReviewModal } from '../components/place/Reviews.jsx';
 import MapView from '../components/map/MapView.jsx';
+import RouteGuide from '../components/nearby/RouteGuide.jsx';
+import { readOrigin } from '../utils/origin.js';
 import { categoryMeta } from '../utils/categories.js';
 import { formatKm, formatRating, INDOOR_LABEL, MAX_SIZE_LONG } from '../utils/format.js';
 import { lineName, stationBase, stationLabel } from '../utils/subway.js';
@@ -79,6 +81,12 @@ function Detail({ place, setPlace }) {
   const near = place.nearbyStations;
   const fromStation = near.find((s) => String(s.stationId) === params.get('stationId')) ?? near.find((s) => s.lines.includes(params.get('line'))) ?? near[0];
   const crumbLine = params.get('line') && fromStation?.lines.includes(params.get('line')) ? params.get('line') : fromStation?.lines[0];
+  const routeOrigin =
+    params.get('from') === 'me'
+      ? readOrigin()
+      : params.get('stationId') && fromStation
+        ? { label: stationLabel(fromStation.stationName), lat: fromStation.lat, lng: fromStation.lng }
+        : readOrigin();
 
   const { on, pending, toggle } = useBookmarkToggle(place.placeId, place.bookmarked, (_, v) =>
     setPlace((p) => ({ ...p, bookmarked: v, bookmarkCount: p.bookmarkCount + (v ? 1 : -1) })),
@@ -107,8 +115,8 @@ function Detail({ place, setPlace }) {
             )}
             <div className="detail-hero__chips">
               <Tag tone="white">{place.categoryName}</Tag>
-              <Tag tone="white">{MAX_SIZE_LONG[place.maxSize]}</Tag>
-              <Tag tone="white">{INDOOR_LABEL[place.indoorType]}</Tag>
+              {MAX_SIZE_LONG[place.maxSize] && <Tag tone="white">{MAX_SIZE_LONG[place.maxSize]}</Tag>}
+              {INDOOR_LABEL[place.indoorType] && <Tag tone="white">{INDOOR_LABEL[place.indoorType]}</Tag>}
             </div>
             <h1 className="detail-hero__name">{place.name}</h1>
             <a href="#reviews" className="detail-hero__rating">
@@ -145,6 +153,11 @@ function Detail({ place, setPlace }) {
       <NowStation steps={EXPLORE_STEPS} current={on ? 3 : 2} />
 
       <div className="container">
+        {/* 가는 방법: 내 위치(주변 탐색)에서 왔으면 내 위치, 역에서 왔으면 그 역, 아니면 마지막으로 고른 출발점 */}
+        <section className="section">
+          <RouteGuide origin={routeOrigin} dest={{ name: place.name, lat: place.lat, lng: place.lng }} />
+        </section>
+
         {/* 가까운 지하철역 */}
         <section className="section">
           <div className="section-head">
@@ -180,11 +193,11 @@ function Detail({ place, setPlace }) {
           <div className="guide-cards">
             <div className="guide-card guide-card--mint">
               <p className="guide-card__label">동반 가능 크기</p>
-              <p className="guide-card__value">{MAX_SIZE_LONG[place.maxSize].replace('견', '')}</p>
+              <p className="guide-card__value">{(MAX_SIZE_LONG[place.maxSize] ?? '정보 없음').replace('견', '')}</p>
             </div>
             <div className="guide-card guide-card--mint">
               <p className="guide-card__label">실내 · 실외</p>
-              <p className="guide-card__value">{INDOOR_LABEL[place.indoorType]} 가능</p>
+              <p className="guide-card__value">{INDOOR_LABEL[place.indoorType] ? `${INDOOR_LABEL[place.indoorType]} 가능` : '정보 없음'}</p>
             </div>
             <div className="guide-card">
               <p className="guide-card__label">상세 설명</p>

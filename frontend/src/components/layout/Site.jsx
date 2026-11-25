@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { IMG, LogoMark } from '../illust/index.jsx';
 
 export const LINES_NAV = [
-  { key: 'E', label: '역세권 탐색', short: '탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
+  { key: 'E', label: '주변 탐색', short: '탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
   { key: 'R', label: '병원 · 호텔', short: '예약', name: '예약선', to: '/reservations/hospital', match: ['/reservations', '/hospitals'] },
   { key: 'S', label: '펫 스토어', short: '스토어', name: '쇼핑선', to: '/shop', match: ['/shop', '/cart'] },
   { key: 'M', label: '마이페이지', short: '마이', name: '마이선', to: '/mypage', match: ['/mypage', '/signup', '/pets'] },

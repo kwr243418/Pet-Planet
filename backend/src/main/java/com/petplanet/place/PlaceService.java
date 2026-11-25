@@ -5,6 +5,7 @@ import com.petplanet.common.Csv;
 import com.petplanet.common.PageResponse;
 import com.petplanet.common.Paging;
 import com.petplanet.common.Rs;
+import com.petplanet.station.Origin;
 import com.petplanet.station.StationDirectory;
 import com.petplanet.station.StationDirectory.Station;
 import com.petplanet.station.StationDirectory.StationRef;
@@ -27,7 +28,7 @@ public class PlaceService {
 
     private static final List<String> SIZE_ORDER = List.of("SMALL", "MEDIUM", "LARGE");
     private static final Set<String> INDOOR_TYPES = Set.of("INDOOR", "OUTDOOR", "BOTH");
-    private static final double MAX_RADIUS_KM = 3.0;
+    private static final double MAX_RADIUS_KM = 5.0; // 내 위치 기준(지방)은 5km까지
 
     /** 목록 아이템 (상세는 phone·description·bookmarkCount·nearbyStations 를 더 채워요) */
     public record Place(long placeId, String name, Long categoryId, String categoryName, String address, double lat, double lng,
@@ -42,7 +43,7 @@ public class PlaceService {
         }
     }
 
-    public record SearchQuery(Long stationId, Double radiusKm, String categoryIds, String sizes, String indoor, String lines,
+    public record SearchQuery(Long stationId, Double lat, Double lng, Double radiusKm, String categoryIds, String sizes, String indoor, String lines,
                               String keyword, String sort, Integer page, Integer size) {
     }
 
@@ -94,10 +95,8 @@ public class PlaceService {
         MapSqlParameterSource params = new MapSqlParameterSource("uid", uid);
         List<String> where = new ArrayList<>();
 
-        Station origin = null;
-        if (q.stationId() != null) {
-            origin = stations.find(q.stationId());
-            if (origin == null) throw ApiException.notFound("STATION_NOT_FOUND", "존재하지 않는 지하철역이에요.");
+        Station origin = Origin.resolve(stations, q.stationId(), q.lat(), q.lng());
+        if (origin != null) {
             double radius = q.radiusKm() == null || q.radiusKm() <= 0 ? 1.0 : Math.min(q.radiusKm(), MAX_RADIUS_KM);
             params.addValue("slat", origin.lat()).addValue("slng", origin.lng()).addValue("radiusM", radius * 1000);
             where.add("ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:slng, :slat)) <= :radiusM");

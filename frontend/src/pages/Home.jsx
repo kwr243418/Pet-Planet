@@ -12,7 +12,7 @@ import { readLastStation } from './Explore.jsx';
 import { DEFAULT_LINE, stationBase, stationLabel } from '../utils/subway.js';
 
 const LINE_TILES = [
-  { key: 'E', name: '탐색선', title: '역세권\n동반 장소 탐색', desc: '역 반경 1km 카페 · 식당 · 숙소 · 운동장', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
+  { key: 'E', name: '탐색선', title: '내 주변\n동반 장소 탐색', desc: '내 위치 · 지하철역 기준 장소 · 병원 · 호텔', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
   { key: 'R', name: '예약선', title: '동물병원 ·\n펫 호텔 예약', desc: '체중에 맞는 객실만 골라 보여 줍니다', cta: '예약선 타기', to: '/reservations/hospital', img: IMG.engraveTerrier },
   { key: 'S', name: '쇼핑선', title: '사료 · 간식 ·\n외출 용품 쇼핑', desc: '장바구니부터 배송 조회까지 한 번에', cta: '쇼핑선 타기', to: '/shop', img: IMG.engravePointerStanding },
   { key: 'M', name: '마이선', title: '예약 · 주문 ·\n리뷰 한곳에서', desc: '장소 후기와 상품 후기를 하나로', cta: '마이선 타기', to: '/mypage', img: IMG.engraveRetriever },
@@ -50,16 +50,21 @@ export default function Home() {
           <div className="hub-hero__text">
             <p className="eyebrow eyebrow--night">이번 역 · {st ? stationLabel(st.stationName) : '…'}</p>
             <h1 className="hub-hero__title">
-              역에서 시작하는
+              어디서든,
               <br />
-              반려동물과의 하루.
+              반려동물과 함께 가는 길.
             </h1>
             <p className="hub-hero__tag">
-              역에서 걸어서 1km, <span>같이 갈 수 있는 곳</span>을 찾습니다
+              내 위치에서, 가까운 역에서 <span>같이 갈 수 있는 곳</span>을 찾습니다
             </p>
-            <Link to={exploreLink} className="btn btn--gold btn--md hub-hero__cta">
-              우리 역 주변 찾기
-            </Link>
+            <div className="hub-hero__ctas">
+              <Link to="/explore?mode=me" className="btn btn--gold btn--md">
+                내 위치로 찾기
+              </Link>
+              <Link to={exploreLink} className="btn btn--night btn--md">
+                우리 역 주변 찾기
+              </Link>
+            </div>
           </div>
           <div className="hub-hero__photo">
             <SubwayPoodle />

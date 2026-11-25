@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
 import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Spinner, Tag } from '../../components/common/ui.jsx';
@@ -41,7 +41,8 @@ export default function HotelReservePage() {
   usePageTitle('펫 호텔 예약');
   const toast = useToast();
   const { isLoggedIn, booting, pets } = useAuth();
-  const [hotelId, setHotelId] = useState(null);
+  const [params] = useSearchParams();
+  const [hotelId, setHotelId] = useState(() => Number(params.get('hotelId')) || null); // 주변 탐색에서 고른 호텔
   const [petId, setPetId] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');

@@ -125,7 +125,7 @@ const csv = (v, map = (x) => x) =>
 
 /**
  * 다중 조건 장소 검색 (BE1 "다중 조건 장소 검색 SQL"에 대응)
- * query: stationId, radiusKm(0.5|1), categoryIds, sizes, indoor, lines, keyword, sort(distance|reviews|rating), page, size
+ * query: stationId | lat+lng(내 위치), radiusKm(0.5~5), categoryIds, sizes, indoor, lines, keyword, sort(distance|reviews|rating), page, size
  */
 export function searchPlaces(db, query = {}, userId) {
   const categoryIds = csv(query.categoryIds, Number);
@@ -133,12 +133,15 @@ export function searchPlaces(db, query = {}, userId) {
   const sizes = csv(query.sizes);
   const indoor = csv(query.indoor);
   const keyword = (query.keyword ?? '').trim();
-  const radiusKm = Math.min(Number(query.radiusKm) || NEARBY_KM, 3);
+  const radiusKm = Math.min(Number(query.radiusKm) || NEARBY_KM, 5);
   const page = Math.max(0, Number(query.page) || 0);
   const size = Math.min(50, Math.max(1, Number(query.size) || 10));
 
   let origin = null;
-  if (query.stationId) {
+  if (query.lat != null && query.lng != null) {
+    // 내 위치 기준 (백엔드 Origin.resolve 와 같은 규칙)
+    origin = { stationId: 0, stationName: '내 위치', lat: Number(query.lat), lng: Number(query.lng) };
+  } else if (query.stationId) {
     origin = stationById.get(Number(query.stationId));
     if (!origin) fail(404, 'STATION_NOT_FOUND', '존재하지 않는 지하철역이에요.');
   }

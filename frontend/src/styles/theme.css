@@ -676,8 +676,10 @@ h3,
   border-bottom: 1px solid var(--gold);
   padding-bottom: 4px;
 }
-.hub-hero__cta {
-  align-self: flex-start;
+.hub-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 12px;
 }
 .hub-hero__photo {
@@ -1539,4 +1541,219 @@ h3,
 /* 장바구니 바가 아래 내용(오류 안내 버튼 등)을 가리지 않게 */
 .fe2 {
   padding-bottom: 120px;
+}
+
+/* ---------- 주변 탐색: 출발점 · 탭 · 병원/호텔 카드 · 가는 방법 ---------- */
+.origin-picker {
+  margin-top: 40px;
+  padding: 28px 32px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+}
+.origin-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+}
+.origin-picker__q {
+  font-family: var(--font-title);
+  font-size: 22px;
+}
+.origin-picker__me {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+.origin-picker__me .btn[aria-pressed='true'] {
+  background: var(--night);
+  color: var(--on-night);
+}
+.origin-picker__now {
+  margin-left: auto;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.origin-picker__now b {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--night);
+  border-bottom: 1px solid var(--gold);
+  padding-bottom: 2px;
+}
+.origin-picker .field__error {
+  flex-basis: 100%;
+}
+.explore-tabs {
+  margin-top: 28px;
+}
+.filter-panel--radius {
+  margin-top: 16px;
+}
+.facility-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.facility-card {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 22px 24px 22px 64px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+}
+.facility-card__num {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  background: var(--night);
+  color: var(--on-night);
+}
+.facility-card__body {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.facility-card__kind {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--gold-ink);
+}
+.facility-card__badge {
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--on-night);
+  background: var(--night);
+}
+.facility-card__name {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+}
+.facility-card__addr,
+.facility-card__hours {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.facility-card__travel {
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--night);
+}
+.facility-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.route-guide {
+  padding: 32px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.fe2 .route-guide {
+  margin-top: 24px;
+}
+.route-guide__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+.route-guide__from {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.route-guide__from b {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 17px;
+  color: var(--night);
+}
+.route-guide__modes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--ring);
+}
+.route-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 20px;
+  text-align: left;
+  border-right: 1px solid var(--ring);
+  background: var(--white);
+  color: var(--night);
+  transition: background 0.15s;
+}
+.route-mode:last-child {
+  border-right: 0;
+}
+.route-mode:hover {
+  background: var(--mint-soft);
+}
+.route-mode.is-on {
+  background: var(--night);
+  color: var(--on-night);
+}
+.route-mode__label {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+}
+.route-mode__time {
+  font-family: var(--font-title);
+  font-size: 24px;
+}
+.route-guide__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.route-guide__go {
+  align-self: flex-start;
+}
+.route-guide__note {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+@media (max-width: 640px) {
+  .route-guide__modes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .route-mode:nth-child(2) {
+    border-right: 0;
+  }
+  .route-mode:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--ring);
+  }
+  .origin-picker__now {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
 }
