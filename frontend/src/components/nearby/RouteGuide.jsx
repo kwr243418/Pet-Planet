@@ -8,6 +8,9 @@ import { useAuth } from '../../context/AuthContext.jsx';
  * 가는 방법: 도보 · 버스 · 자동차 · 택시 중 하나를 고르면 어림 시간을 보여 주고 카카오맵 길찾기로 연결
  * origin: { label, lat, lng } | null  ·  dest: { name, lat, lng }
  */
+/** 도보가 이보다 오래 걸리면 시간 대신 "걷기엔 멀어요" (반려동물도 지쳐요) */
+const WALK_LIMIT_MIN = 90;
+
 export default function RouteGuide({ origin: initialOrigin, dest }) {
   const [origin, setOrigin] = useState(initialOrigin ?? null);
   const [modeKey, setModeKey] = useState('walk');
@@ -39,7 +42,7 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
         {TRAVEL_MODES.map((m) => (
           <button key={m.key} type="button" role="radio" aria-checked={m.key === modeKey} className={`route-mode ${m.key === modeKey ? 'is-on' : ''}`} onClick={() => setModeKey(m.key)}>
             <span className="route-mode__label">{m.label}</span>
-            <span className="route-mode__time">{origin ? `약 ${formatMinutes(travelMinutes(km, m))}` : '—'}</span>
+            <span className="route-mode__time">{!origin ? '—' : m.key === 'walk' && travelMinutes(km, m) > WALK_LIMIT_MIN ? '걷기엔 멀어요' : `약 ${formatMinutes(travelMinutes(km, m))}`}</span>
           </button>
         ))}
       </div>

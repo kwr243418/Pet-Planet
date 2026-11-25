@@ -18,7 +18,8 @@ const STATUS_TEXT = {
 export default function TransitPanel({ dest }) {
   const stops = useAsync(() => busApi.nearby({ lat: dest.lat, lng: dest.lng, radiusM: 500, limit: 3 }), [dest.lat, dest.lng]);
   const [openId, setOpenId] = useState(null);
-  const list = stops.data ?? [];
+  // 같은 이름 정류장(길 양쪽)은 두 번째부터 "(맞은편)"을 붙여 구분해요
+  const list = (stops.data ?? []).map((s, i, all) => (all.slice(0, i).some((x) => x.name === s.name) ? { ...s, name: `${s.name} (맞은편)` } : s));
   const selected = list.find((s) => s.stopId === openId) ?? list[0];
 
   return (

@@ -111,9 +111,16 @@ function Detail({ place, setPlace }) {
             </div>
             <h1 className="detail-hero__name">{place.name}</h1>
             <a href="#reviews" className="detail-hero__rating">
-              <Stars value={place.avgRating} size={18} />
-              <b className="en">{formatRating(place.avgRating)}</b>
-              <span className="muted">리뷰 {place.reviewCount}개</span>
+              {place.reviewCount > 0 ? (
+                <>
+                  <Stars value={place.avgRating} size={18} />
+                  <b className="en">{formatRating(place.avgRating)}</b>
+                  <span className="muted">리뷰 {place.reviewCount}개</span>
+                </>
+              ) : (
+                // 후기가 없을 때 0.0점 별을 보이면 평가가 나쁜 곳처럼 보여서 안내 문구로
+                <span className="muted">아직 펫 플래닛 후기가 없어요 · 리뷰 0개</span>
+              )}
             </a>
             <p className="detail-hero__addr muted">
               {place.address}
