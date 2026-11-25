@@ -1,12 +1,12 @@
 // 화면 공통 UX 훅 (3주차 Day 11~12)
 import { useEffect } from 'react';
 
-const SITE = 'PET PLANET';
+const SITE = '펫 플래닛';
 
-/** 브라우저 탭 제목: "장소 탐색 · PET PLANET" */
+/** 브라우저 탭 제목: "장소 탐색 · 펫 플래닛" */
 export function usePageTitle(title) {
   useEffect(() => {
-    document.title = title ? `${title} · ${SITE}` : `${SITE} · 역세권 반려생활 플랫폼`;
+    document.title = title ? `${title} · ${SITE}` : `${SITE} · 역에서 시작하는 반려생활`;
   }, [title]);
 }
 

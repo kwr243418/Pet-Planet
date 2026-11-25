@@ -34,7 +34,7 @@ export default function Login() {
   const toast = useToast();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirect = params.get('redirect') || '/';
+  const redirect = params.get('redirect') || '/home';
 
   const onChange = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));

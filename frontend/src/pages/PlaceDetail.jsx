@@ -5,7 +5,6 @@ import { useAsync } from '../hooks/useAsync.js';
 import { usePageTitle } from '../hooks/usePage.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LetterBadge, NowStation } from '../components/layout/Site.jsx';
-import { StationBuildings } from '../components/illust/index.jsx';
 import { Button, ConfirmDialog, EmptyState, ErrorState, LineChip, Skeleton, Stars, Tag } from '../components/common/ui.jsx';
 import { useToast } from '../components/common/Toast.jsx';
 import { HeartIcon, useBookmarkToggle } from '../components/place/BookmarkButton.jsx';
@@ -135,9 +134,9 @@ function Detail({ place, setPlace }) {
               <img src={place.imageUrl} alt={`${place.name} 대표 사진`} onError={() => setPhotoBroken(true)} />
             ) : (
               <>
+                <img src={meta.detailImg ?? meta.img} alt={`${meta.label} 대표 이미지`} />
                 <span className="photo-card__word en">{meta.en}</span>
-                <StationBuildings className="photo-card__art" />
-                <span className="photo-card__note">대표 사진 영역</span>
+                <span className="photo-card__note">예시 사진</span>
               </>
             )}
           </div>

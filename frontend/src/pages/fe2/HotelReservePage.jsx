@@ -94,7 +94,7 @@ export default function HotelReservePage() {
 
   const hero = (
     <>
-      <PageHero line="R" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
+      <PageHero line="R" photo="/images/a5-hotel-retriever.jpg" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
       <NowStation steps={['예약 선택', '호텔 선택', '객실 · 체중 검증', '예약 완료']} current={done ? 3 : 2} />
     </>
   );

@@ -1,6 +1,6 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { LogoMark } from '../illust/index.jsx';
+import { IMG, LogoMark } from '../illust/index.jsx';
 
 export const LINES_NAV = [
   { key: 'E', label: '역세권 탐색', short: '탐색', name: '탐색선', to: '/explore', match: ['/explore', '/places'] },
@@ -16,9 +16,9 @@ export function LetterBadge({ letter, size = 'md', tone = 'green' }) {
 
 export function Logo() {
   return (
-    <Link to="/" className="logo" aria-label="PET PLANET 홈">
+    <Link to="/home" className="logo" aria-label="펫 플래닛 홈">
       <LogoMark />
-      <span className="logo__text">PET PLANET</span>
+      <span className="logo__text">펫 플래닛</span>
     </Link>
   );
 }
@@ -61,7 +61,7 @@ export function SiteHeader({ tone = 'mint' }) {
                 className="btn btn--primary btn--sm"
                 onClick={() => {
                   logout();
-                  navigate('/');
+                  navigate('/home');
                 }}
               >
                 로그아웃
@@ -78,30 +78,39 @@ export function SiteHeader({ tone = 'mint' }) {
   );
 }
 
-/** 공통 푸터: 짙은 초록 · 워드마크 · 공공데이터·카카오맵 출처 */
+/** 공통 푸터: 검정 면 · 워드마크 · 공공데이터·카카오맵 출처 */
 export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="container">
-        <p className="site-footer__mark en">PET PLANET</p>
         <div className="site-footer__row">
-          <p className="site-footer__src">
-            장소 · 역 데이터: 공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보 · 지도: 카카오맵 API
+          <p className="site-footer__mark">
+            <LogoMark size={22} /> 펫 플래닛
           </p>
-          <div className="site-footer__lines" aria-hidden>
+          <nav className="site-footer__nav" aria-label="푸터 메뉴">
             {LINES_NAV.map((l) => (
-              <LetterBadge key={l.key} letter={l.key} size="lg" tone="mint" />
+              <Link key={l.key} to={l.to}>
+                {l.label}
+              </Link>
             ))}
-          </div>
+          </nav>
         </div>
+        <p className="site-footer__src">
+          장소 · 역 데이터: 공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보 · 지도: 카카오맵 API · 이미지: AI 생성
+        </p>
       </div>
     </footer>
   );
 }
 
-/** 페이지 상단: 민트 배경 + 큰 영문 제목 + 한글 제목 1줄 + 설명 + 일러스트 */
-export function PageHero({ line, en, title, desc, art, children, compact }) {
+// 노선별 상단 사진 (photo 로 바꿀 수 있어요)
+const HERO_PHOTO = { E: IMG.stationPath, R: IMG.vet, S: IMG.darkStillLife, M: IMG.spaniel };
+
+/** 페이지 상단: 검정 면 + 작은 영문 라벨 + 명조 제목 + 금색 선 + 설명 + 오른쪽 사진
+ *  art(예전 SVG 일러스트)는 더 이상 그리지 않고, 노선별 사진(photo)을 씁니다. */
+export function PageHero({ line, en, title, desc, photo, children, compact }) {
   const l = LINES_NAV.find((x) => x.key === line);
+  const src = photo === undefined ? HERO_PHOTO[line] ?? IMG.spaniel : photo;
   return (
     <section className={`page-hero ${compact ? 'page-hero--compact' : ''}`}>
       <div className="container page-hero__inner">
@@ -116,7 +125,11 @@ export function PageHero({ line, en, title, desc, art, children, compact }) {
           {desc && <p className="page-hero__desc">{desc}</p>}
           {children}
         </div>
-        {art && <div className="page-hero__art">{art}</div>}
+        {src && (
+          <div className="page-hero__art">
+            <img src={src} alt="" />
+          </div>
+        )}
       </div>
     </section>
   );

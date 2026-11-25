@@ -54,7 +54,7 @@ try {
   await page.getByRole('radio', { name: '완료' }).click();
   await page.getByRole('button', { name: /가입하고 출발하기/ }).click();
   await wait(1500);
-  check(new URL(page.url()).pathname === '/', '가입 후 홈으로 환승');
+  check(new URL(page.url()).pathname === '/home', '가입 후 홈(/home)으로 환승');
   check(await page.getByText('시연회원 님').isVisible(), '헤더에 로그인 상태');
   check((await page.locator('.pet-ticket b').first().innerText()) === '보리', '홈 체중 배너에 내 반려동물(보리 18kg)');
   check((await page.locator('.room-row.is-no').count()) === 1, '18kg → 미디엄 룸(15kg) 입실 불가 표시');

@@ -1,5 +1,19 @@
 # 02. 디자인 가이드
 
+> **2026-11-25 UX/UI 개편: "다크 & 화이트 에디토리얼"**
+> 아래 "지하철 노선도 콘셉트" 규칙 위에 새 테마를 덮어썼어요. 변수 이름은 그대로 두고 값만 바꿨기 때문에 화면 코드는 거의 그대로예요.
+>
+> | 항목 | 지금 규칙 | 파일 |
+> |---|---|---|
+> | 색 | 검정 `#1C1B19` 면과 흰 면을 번갈아 씀. 금색 `#C9A26B`는 짧은 선·밑줄·노선에만, 흰 면 위 금색 글자는 `#8A6A3B` | `styles/tokens.css` |
+> | 글꼴 | 제목 고운바탕(명조), 본문 고운돋움. 굵게 대신 크기·색으로 구분 (`font-synthesis: none`) | `index.html`, `tokens.css` |
+> | 모양 | 모든 상자·버튼·태그는 직사각형, 카드는 1px 가는 테두리 | `styles/theme.css` |
+> | 상단 | `PageHero`는 검정 면 + 작은 영문 라벨 + 명조 제목 + 금색 선 + 오른쪽 사진(`photo`, 노선별 기본값) | `components/layout/Site.jsx` |
+> | 이미지 | 실사 사진·판화 일러스트(AI 생성)를 `public/images/`에 둠. 일러스트 컴포넌트 이름은 그대로 | `components/illust/index.jsx` |
+> | 첫 화면 | `/`는 서비스 소개 페이지(`pages/Intro.jsx`), 홈 허브는 `/home` | `App.jsx` |
+>
+> 새 화면을 만들 때는 `theme.css`의 `.eyebrow`, `.gold-rule`, `.btn--gold`(검정 면 위), `.btn--line`(흰 면 위)을 쓰면 톤이 맞아요.
+
 팀장 목업 "지하철 노선도 콘셉트"의 공통 규칙을 코드로 옮긴 거예요. 실제 값은 `frontend/src/styles/tokens.css`.
 
 ## 색 — 4색만 사용

@@ -1,55 +1,65 @@
 /* =========================================================
-   펫플래닛 디자인 토큰 — 팀 목업 "지하철 노선도 콘셉트"
-   규칙: 메인 민트 / 짙은 초록 / 크림 / 테라코타 4색 (+ 흰색과 목업에 쓰인 같은 계열 톤)
+   펫플래닛 디자인 토큰 — "다크 & 화이트 에디토리얼"
+   검정(#1C1B19)과 흰색 면을 번갈아 쓰고, 금색은 짧은 선·밑줄·노선에만 씁니다.
+   변수 이름은 예전 그대로 두고 값만 바꿨어요 (화면 코드 수정 최소화).
    ========================================================= */
 :root {
-  /* 4 core colors */
-  --mint: #c4ebc3;
-  --green: #264536;
-  --cream: #fbf8f1;
-  --terra: #c8673f;
+  /* 기본 4색 (예전 이름 유지) */
+  --mint: #ece8e1; /* 연한 면: 태그 · 타일 · 카드 상단 */
+  --green: #1c1b19; /* 잉크 · 어두운 면 · 주요 버튼 */
+  --cream: #fbfaf7; /* 페이지 바탕 */
+  --terra: #8a5a3b; /* 별점 · 오류 · 강조 글자 */
 
-  /* 같은 계열 톤 (목업에서 추출) */
-  --mint-soft: #e2f3e0; /* R 타일, 연한 카드 */
-  --mint-deep: #9fd5a3; /* 일러스트 그림자, 완료 구간 */
-  --beige: #ede7d9; /* 선택 버튼 바탕, S·M 타일 */
-  --beige-soft: #f4eee2;
+  /* 같은 계열 톤 */
+  --mint-soft: #f5f3ef;
+  --mint-deep: #c9a26b; /* 금색: 지난 구간 · 짧은 선 */
+  --beige: #e6e2da;
+  --beige-soft: #f2efea;
   --white: #ffffff;
-  --ring: #e6e1d6; /* 미래 역(비활성) 링 */
+  --ring: #d8d2c7;
 
-  /* 일러스트 전용 (강아지 털) */
-  --fur: #f0c895;
-  --fur-deep: #d29962;
-  --fur-light: #f7e6cc;
+  /* 새 디자인 전용 */
+  --gold: #c9a26b; /* 어두운 면 위 선 · 밑줄 */
+  --gold-ink: #8a6a3b; /* 흰 면 위 금색 글자 (명도 대비 4.5:1 이상) */
+  --night: #1c1b19;
+  --night-2: #26251f;
+  --night-line: #2e2c29;
+  --on-night: #f4f1ea;
+  --on-night-2: #a8a398;
+  --hairline: #ece8e1;
 
-  /* 텍스트 = 짙은 초록의 투명도 단계 */
+  /* 일러스트 전용 (예전 SVG 호환) */
+  --fur: #d8c3a5;
+  --fur-deep: #8a6a3b;
+  --fur-light: #efe7da;
+
+  /* 텍스트 */
   --ink: var(--green);
-  --ink-2: rgba(38, 69, 54, 0.72);
-  --ink-3: rgba(38, 69, 54, 0.5);
-  --line: rgba(38, 69, 54, 0.12);
+  --ink-2: rgba(28, 27, 25, 0.7);
+  --ink-3: rgba(28, 27, 25, 0.52);
+  --line: rgba(28, 27, 25, 0.12);
 
-  /* Typography */
-  --font-ko: 'Gothic A1', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
-  --font-en: 'Jost', 'Gothic A1', sans-serif;
-  --font-title: 'Bagel Fat One', 'Jost', sans-serif; /* 메인 타이틀 전용 */
+  /* Typography: 제목은 얇은 명조, 본문은 고운돋움 */
+  --font-ko: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-en: 'Gowun Batang', 'Gowun Dodum', serif;
+  --font-title: 'Gowun Batang', 'Apple SD Gothic Neo', serif;
 
-  /* Shape — 카드 32~40px, 테두리 없음 */
-  --r-card: 36px;
-  --r-lg: 24px;
-  --r-md: 16px;
-  --r-pill: 999px;
+  /* Shape — 모두 직사각형 */
+  --r-card: 0;
+  --r-lg: 0;
+  --r-md: 0;
+  --r-pill: 0;
 
-  --shadow: 0 1px 0 rgba(38, 69, 54, 0.04);
+  --shadow: none;
 
   --container: 1180px;
-  --gutter: 32px;
+  --gutter: 48px;
   --header-h: 76px;
 }
 
 @media (max-width: 720px) {
   :root {
-    --gutter: 18px;
-    --r-card: 28px;
+    --gutter: 20px;
     --header-h: 64px;
   }
 }

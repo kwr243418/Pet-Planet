@@ -354,7 +354,7 @@ function Withdraw() {
             await userApi.withdraw();
             logout();
             toast.show('탈퇴가 완료됐어요. 그동안 함께해 주셔서 고마워요');
-            navigate('/', { replace: true });
+            navigate('/home', { replace: true });
           } catch (e) {
             toast.error(e.message);
             setOpen(false);
