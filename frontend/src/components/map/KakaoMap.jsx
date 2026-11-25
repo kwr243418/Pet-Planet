@@ -3,7 +3,7 @@ import { offsetMeters } from '../../utils/geo.js';
 
 let kakaoPromise = null;
 
-/** 카카오맵 JS SDK 동적 로드 (autoload=false → kakao.maps.load 콜백) */
+/** 카카오맵 JS SDK 동적 로드 (autoload=false → kakao.maps.load 콜백) · services: 좌표 → 주소(건물명) 변환에 씀 */
 export function loadKakaoMaps(appKey, timeoutMs = 7000) {
   if (window.kakao?.maps?.LatLng) return Promise.resolve(window.kakao);
   if (kakaoPromise) return kakaoPromise;
@@ -13,7 +13,7 @@ export function loadKakaoMaps(appKey, timeoutMs = 7000) {
       reject(new Error('카카오맵 SDK 응답 시간 초과 (앱 키·도메인 등록 확인)'));
     }, timeoutMs);
     const s = document.createElement('script');
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
+    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&libraries=services&autoload=false`;
     s.async = true;
     s.onload = () => {
       if (!window.kakao?.maps) {

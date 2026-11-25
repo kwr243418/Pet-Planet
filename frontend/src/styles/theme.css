@@ -1696,6 +1696,22 @@ h3,
   font-size: 17px;
   color: var(--night);
 }
+.route-guide__relocate {
+  margin-left: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-3, var(--ink-2));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.route-guide__relocate:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
 .route-guide__modes {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

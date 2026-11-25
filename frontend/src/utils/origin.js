@@ -1,10 +1,9 @@
-// 주변 탐색의 출발점(내 위치 · 시연 위치)과 가는 방법(도보 · 버스 · 자동차 · 택시) 도우미
+// 주변 탐색의 출발점(내 위치)과 가는 방법(도보 · 버스 · 자동차 · 택시) 도우미
 import { haversineKm } from './geo.js';
 
 const ORIGIN_KEY = 'pp-origin';
 
-/** 시연용 고정 위치 (현재 위치를 못 받거나 실내라 부정확할 때)
- *  좌표는 대략값이에요. 카카오맵에서 한 번 확인하고 필요하면 고쳐 주세요. */
+/** 홈 "다음 정류장"의 기본 기준점 (저장된 내 위치가 없을 때만 씀 · 화면에 버튼으로 나오지 않아요) */
 export const PRESET_ORIGINS = [
   { key: 'mnu', label: '국립목포대학교', lat: 34.9113, lng: 126.4377 },
   { key: 'mokpo-st', label: '목포역', lat: 34.7914, lng: 126.3866 },
@@ -14,7 +13,10 @@ export const PRESET_ORIGINS = [
 export function readOrigin() {
   try {
     const o = JSON.parse(localStorage.getItem(ORIGIN_KEY));
-    return o && Number.isFinite(o.lat) && Number.isFinite(o.lng) ? o : null;
+    if (!o || !Number.isFinite(o.lat) || !Number.isFinite(o.lng)) return null;
+    // 예전 "○○ 기준" 버튼으로 저장된 값은 버려요 (지금은 내 위치만 써요)
+    if (!o.kind && PRESET_ORIGINS.some((p) => p.label === o.label)) return null;
+    return o;
   } catch {
     return null;
   }
@@ -22,7 +24,7 @@ export function readOrigin() {
 
 export function saveOrigin(o) {
   try {
-    localStorage.setItem(ORIGIN_KEY, JSON.stringify({ label: o.label, lat: o.lat, lng: o.lng }));
+    localStorage.setItem(ORIGIN_KEY, JSON.stringify({ label: o.label, lat: o.lat, lng: o.lng, kind: o.kind ?? 'here' }));
   } catch {
     /* 저장 못 해도 화면은 동작 */
   }
@@ -46,6 +48,65 @@ export function locateMe() {
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
     );
   });
+}
+
+const withTimeout = (p, ms) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
+
+/** 카카오 좌표 → 주소: 도로명 주소의 건물명, 없으면 동 이름 */
+async function kakaoNameNear(lat, lng) {
+  const key = (import.meta.env ?? {}).VITE_KAKAO_MAP_KEY;
+  if (!key) return null;
+  try {
+    const { loadKakaoMaps } = await import('../components/map/KakaoMap.jsx');
+    const kakao = await loadKakaoMaps(key);
+    const { services } = kakao.maps;
+    if (!services) return null;
+    const r = await new Promise((resolve) =>
+      new services.Geocoder().coord2Address(lng, lat, (out, status) => resolve(status === services.Status.OK ? out[0] : null)),
+    );
+    const building = r?.road_address?.building_name?.trim();
+    return { building: building || null, dong: r?.address?.region_3depth_name || null };
+  } catch {
+    return null;
+  }
+}
+
+/** 우리 DB의 가장 가까운 버스 정류장 이름 (300m 안) */
+async function stopNameNear(lat, lng) {
+  try {
+    const { busApi } = await import('../api/index.js');
+    const [s] = (await busApi.nearby({ lat, lng, radiusM: 300, limit: 1 })) ?? [];
+    return s?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 내 좌표를 사람이 알아볼 이름으로: 가까운 건물 → 가까운 정류장 → 동 → "현재 위치"
+ * 예) "국립목포대학교 근처", "목포가톨릭대학교 정류장 근처", "석현동"
+ */
+export async function nameNear(lat, lng) {
+  const [k, stop] = await Promise.all([withTimeout(kakaoNameNear(lat, lng), 4000), withTimeout(stopNameNear(lat, lng), 4000)]);
+  if (k?.building) return `${k.building} 근처`;
+  if (stop) return `${stop} 정류장 근처`;
+  if (k?.dong) return k.dong;
+  return '현재 위치';
+}
+
+/** 현재 위치를 찾고 이름까지 붙여서 { label, lat, lng, kind: 'here' } */
+export async function locateHere() {
+  const o = await locateMe();
+  return { ...o, label: await nameNear(o.lat, o.lng), kind: 'here' };
+}
+
+/** 위치 권한을 이미 허용했는지 (허용했을 때만 상세 화면에서 조용히 위치를 새로 받아요) */
+export async function locationGranted() {
+  try {
+    return (await navigator.permissions?.query({ name: 'geolocation' }))?.state === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 /** 가는 방법: 직선거리 × 우회 계수 ÷ 평균 속도로 어림한 시간 (실제 경로는 카카오맵에서) */

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatKm } from '../../utils/format.js';
-import { distanceFrom, formatMinutes, kakaoDirectionsUrl, locateMe, saveOrigin, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
+import { distanceFrom, formatMinutes, kakaoDirectionsUrl, locateHere, locationGranted, saveOrigin, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
 import { petBusAdvice } from '../../utils/transit.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -21,19 +21,29 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
 
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState('');
-  const locate = async () => {
+  const locate = async ({ quiet = false } = {}) => {
     setLocating(true);
-    setLocateError('');
+    if (!quiet) setLocateError('');
     try {
-      const o = await locateMe();
+      const o = await locateHere();
       saveOrigin(o);
       setOrigin(o);
     } catch (e) {
-      setLocateError(e.message);
+      if (!quiet) setLocateError(e.message);
     } finally {
       setLocating(false);
     }
   };
+
+  // 상세에 들어오면 내 위치를 새로 받아 기준점으로 (권한을 이미 허용한 경우만 · 팝업을 띄우지 않아요)
+  useEffect(() => {
+    let alive = true;
+    locationGranted().then((ok) => alive && ok && locate({ quiet: true }));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <section className="route-guide" aria-label="가는 방법">
@@ -43,6 +53,9 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
           {origin ? (
             <>
               <b>{origin.label}</b>에서 직선거리 {formatKm(km)}
+              <button type="button" className="route-guide__relocate" disabled={locating} onClick={() => locate()}>
+                {locating ? '위치 찾는 중…' : '위치 다시 찾기'}
+              </button>
             </>
           ) : (
             '현재 위치를 찾으면 이동 시간을 어림해 드려요'
@@ -59,7 +72,7 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
       </div>
       {!origin && (
         <div className="route-guide__presets">
-          <button type="button" className="btn btn--line btn--sm" disabled={locating} onClick={locate}>
+          <button type="button" className="btn btn--line btn--sm" disabled={locating} onClick={() => locate()}>
             {locating ? '위치 찾는 중…' : '현재 위치에서 출발'}
           </button>
           {locateError && <p className="field__error">{locateError}</p>}

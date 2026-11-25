@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../common/ui.jsx';
-import { locateMe } from '../../utils/origin.js';
+import { locateHere } from '../../utils/origin.js';
 
 /** 내 근처 탐색의 출발점: 현재 위치 찾기 */
 export default function OriginPicker({ origin, onOriginChange }) {
@@ -11,7 +11,7 @@ export default function OriginPicker({ origin, onOriginChange }) {
     setLocating(true);
     setError('');
     try {
-      onOriginChange(await locateMe());
+      onOriginChange(await locateHere());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -24,12 +24,12 @@ export default function OriginPicker({ origin, onOriginChange }) {
       <p className="origin-picker__q">어디서 출발할까요?</p>
       <div className="origin-picker__me">
         <Button variant="primary" size="md" loading={locating} onClick={locate}>
-          현재 위치 찾기
+          {origin?.kind === 'here' ? '위치 다시 찾기' : '현재 위치 찾기'}
         </Button>
         <p className="origin-picker__now" aria-live="polite">
           {origin ? (
             <>
-              출발점 <b>{origin.label}</b>
+              내 위치 <b>{origin.label}</b>
             </>
           ) : (
             '현재 위치를 찾아 주세요'
@@ -41,7 +41,7 @@ export default function OriginPicker({ origin, onOriginChange }) {
           </p>
         )}
       </div>
-      <p className="origin-picker__privacy">위치는 주변 검색에만 쓰고 서버에 저장하지 않아요. 마지막 출발점은 이 브라우저에만 기억해요.</p>
+      <p className="origin-picker__privacy">위치는 주변 검색과 가까운 건물 이름 찾기에만 쓰고 서버에 저장하지 않아요. 마지막 위치는 이 브라우저에만 기억해요.</p>
     </section>
   );
 }
