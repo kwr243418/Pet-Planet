@@ -1757,3 +1757,9 @@ h3,
     flex-basis: 100%;
   }
 }
+
+.fe2-sticky__note {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--on-night-2);
+}

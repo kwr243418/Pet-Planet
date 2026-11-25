@@ -205,9 +205,18 @@ export default function HospitalDetailPage() {
               별점 {avg.toFixed(1)} · 리뷰 {count}개
             </span>
           </p>
-          <Link to={`/reservations/hospital?hospitalId=${hospital.hospitalId}`} className="btn btn--primary btn--md">
-            진료 예약하기
-          </Link>
+          {hospital.partner ? (
+            <Link to={`/reservations/hospital?hospitalId=${hospital.hospitalId}`} className="btn btn--primary btn--md">
+              진료 예약하기
+            </Link>
+          ) : hospital.phone ? (
+            // 공공데이터로 들어온 병원은 예약을 받지 않아요 → 예약 화면(제휴 병원만)으로 보내면 다른 병원이 골라져요
+            <a href={`tel:${hospital.phone}`} className="btn btn--primary btn--md">
+              전화로 문의하기
+            </a>
+          ) : (
+            <span className="fe2-sticky__note">온라인 예약을 받지 않는 병원이에요</span>
+          )}
         </div>
       </div>
     </>
