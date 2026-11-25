@@ -2112,3 +2112,140 @@ h3,
   align-items: center;
   gap: 10px 16px;
 }
+/* ---------- 홈 · 첫 화면: 한 구역이 한 화면을 꽉 채우게 ---------- */
+html.fp-snap {
+  scroll-snap-type: y proximity;
+}
+.fp {
+  position: relative;
+  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100svh - var(--header-h));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  scroll-snap-align: start;
+  scroll-margin-top: var(--header-h);
+}
+.fp > .container {
+  width: 100%;
+}
+.section.fp {
+  padding: 72px 0 104px;
+}
+/* 첫 화면(소개)은 위 메뉴가 없어서 화면 전체 */
+.intro .fp {
+  min-height: 100vh;
+  min-height: 100svh;
+  scroll-margin-top: 0;
+}
+.intro-about.fp,
+.intro-how.fp,
+.intro-features.fp {
+  padding-bottom: 120px;
+}
+/* 검정 첫 화면: 글은 가운데, 사진은 위아래 꽉 */
+.hub-hero.fp > .hub-hero__inner,
+.intro-hero.fp > .intro-hero__inner {
+  flex: 1;
+}
+.hub-hero.fp .hub-hero__text,
+.intro-hero.fp .intro-hero__text {
+  justify-content: center;
+}
+.intro-hero.fp {
+  justify-content: flex-start;
+}
+@media (min-width: 861px) {
+  /* 사진이 첫 화면 높이만큼 위아래로 꽉 */
+  .intro-hero.fp .intro-hero__inner {
+    align-items: stretch;
+  }
+  .intro-hero.fp .intro-hero__photo {
+    height: auto;
+    min-height: 620px;
+  }
+}
+
+/* 아래로 버튼 */
+.fp-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.fp-cue__label {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+}
+.fp-cue__arrow {
+  font-size: 18px;
+  line-height: 1;
+  animation: fp-bob 1.8s ease-in-out infinite;
+}
+.fp-cue__timer {
+  display: block;
+  width: 56px;
+  height: 1px;
+  background: var(--gold);
+  transform-origin: left center;
+  animation-name: fp-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.fp-cue--night {
+  color: var(--on-night-2);
+}
+.fp-cue--night:hover {
+  color: var(--on-night);
+}
+.fp-cue--light {
+  color: var(--ink-2);
+}
+.fp-cue--light:hover {
+  color: var(--night);
+}
+.hub-hero.fp .fp-cue {
+  /* 사진 위에 겹치지 않게 글 쪽(왼쪽 칸 가운데)에 */
+  left: 25%;
+}
+.intro-hero.fp .fp-cue {
+  left: 25%;
+}
+@keyframes fp-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+@keyframes fp-timer {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (max-width: 860px) {
+  .hub-hero.fp .fp-cue,
+  .intro-hero.fp .fp-cue {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-cue__arrow {
+    animation: none;
+  }
+}

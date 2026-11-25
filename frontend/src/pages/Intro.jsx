@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePage.js';
 import { IMG, LogoMark } from '../components/illust/index.jsx';
+import { NextCue, useFullPage } from '../components/common/FullPage.jsx';
 
 const PILLARS = [
   { title: '탐색', img: IMG.engraveSpaniel, alt: '앉아 있는 스패니얼 판화', desc: '내 위치나 우리 지역에서 반려동물과 함께 갈 수 있는 곳을 버스 정류장과 함께 찾습니다.', href: '#explore' },
@@ -52,9 +53,10 @@ const FEATURES = [
 /** S00 소개 페이지 (첫 화면) — 서비스를 위에서 아래로 설명하고, 제목·버튼을 누르면 홈으로 */
 export default function Intro() {
   usePageTitle(null);
+  useFullPage();
   return (
     <div className="intro">
-      <section className="intro-hero">
+      <section className="intro-hero fp">
         <div className="container intro-top">
           <Link to="/home" className="logo" aria-label="펫 플래닛 홈">
             <LogoMark />
@@ -94,9 +96,10 @@ export default function Intro() {
             <img src={IMG.heroGolden} alt="정면을 바라보는 골든 리트리버" />
           </div>
         </div>
+        <NextCue label="소개 보기" auto={6000} />
       </section>
 
-      <section id="about" className="intro-about">
+      <section id="about" className="intro-about fp">
         <div className="container intro-center">
           <img className="intro-about__art" src={IMG.engravePointerWalking} alt="" aria-hidden />
           <h2 className="intro-h2">어디서든, 반려동물과 함께 가는 길</h2>
@@ -118,9 +121,10 @@ export default function Intro() {
             ))}
           </div>
         </div>
+        <NextCue label="이용 순서" tone="light" />
       </section>
 
-      <section id="how" className="intro-how">
+      <section id="how" className="intro-how fp">
         <div className="container intro-center">
           <p className="eyebrow eyebrow--night">이용 순서</p>
           <h2 className="intro-h2 intro-h2--night">하나의 노선처럼 이어집니다</h2>
@@ -136,9 +140,10 @@ export default function Intro() {
             ))}
           </ol>
         </div>
+        <NextCue label="기능" tone="night" />
       </section>
 
-      <section id="features" className="intro-features">
+      <section id="features" className="intro-features fp">
         <div className="container intro-center">
           <p className="eyebrow">기능</p>
           <h2 className="intro-h2">필요한 순간에 필요한 서비스</h2>
@@ -164,9 +169,10 @@ export default function Intro() {
             </div>
           </div>
         ))}
+        <NextCue label="시작하기" tone="light" />
       </section>
 
-      <section className="intro-close">
+      <section className="intro-close fp">
         <div className="container intro-close__inner">
           <div className="intro-close__photo">
             <img src={IMG.oldDog} alt="옆 조명을 받은 노견" loading="lazy" />

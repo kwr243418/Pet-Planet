@@ -11,6 +11,7 @@ import { GENDER_LABEL } from '../utils/format.js';
 import { PRESET_ORIGINS, readOrigin } from '../utils/origin.js';
 import { readRegion } from './Explore.jsx';
 import { regionLabel } from '../utils/region.js';
+import { NextCue, useFullPage } from '../components/common/FullPage.jsx';
 
 const LINE_TILES = [
   { key: 'E', name: '탐색선', title: '내 주변\n동반 장소 탐색', desc: '내 위치 · 지역별 장소 · 병원 · 호텔과 버스 정류장', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
@@ -46,10 +47,11 @@ export default function Home() {
 
   const pet = primaryPet ?? SAMPLE_PET;
 
+  useFullPage();
   return (
     <div className="home">
       {/* 상단: 검정 면 + 명조 제목 + 실사 */}
-      <section className="hub-hero">
+      <section className="hub-hero fp">
         <div className="container hub-hero__inner">
           <div className="hub-hero__text">
             <p className="eyebrow eyebrow--night">다음 정류장 · {near.data?.title ?? '…'}</p>
@@ -74,10 +76,11 @@ export default function Home() {
             <SubwayPoodle />
           </div>
         </div>
+        <NextCue label="서비스 보기" auto={6000} />
       </section>
 
       {/* 4개 노선 소개 */}
-      <section className="section hub-lines">
+      <section className="section hub-lines fp">
         <div className="container intro-center">
           <img className="intro-about__art" src={IMG.engravePointerWalking} alt="" aria-hidden />
           <h2 className="intro-h2">하나의 노선, 네 가지 서비스</h2>
@@ -98,10 +101,11 @@ export default function Home() {
             ))}
           </div>
         </div>
+        <NextCue label="다음 정류장" tone="light" />
       </section>
 
       {/* 다음 정류장 (마지막 출발점 주변) */}
-      <section className="section">
+      <section className="section fp">
         <div className="container">
           <div className="section-head section-head--rule">
             <h2 className="section-title">
@@ -123,10 +127,11 @@ export default function Home() {
             </div>
           )}
         </div>
+        <NextCue label="반려동물 프로필" tone="light" />
       </section>
 
       {/* 체중 검증 배너 */}
-      <section className="section">
+      <section className="section fp">
         <WeightBanner pet={pet} isSample={!primaryPet} loggedIn={!!user} />
       </section>
     </div>
