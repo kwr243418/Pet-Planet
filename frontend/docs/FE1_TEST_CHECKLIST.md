@@ -1,5 +1,7 @@
 # FE1 통합 UI 테스트 체크리스트 (v2 — 팀 목업 기준)
 
+> ⚠️ 2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요. 역 · 호선 관련 내용은 [docs/09_BUS_TRANSIT.md](../../docs/09_BUS_TRANSIT.md)를 보세요.
+
 ## 자동 테스트
 ```bash
 npm run test:unit   # node 내장 테스트러너, 추가 설치 없음

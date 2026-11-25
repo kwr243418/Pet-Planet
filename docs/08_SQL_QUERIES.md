@@ -1,13 +1,15 @@
 # 08. SQL 쿼리집 (발표용)
 
+> ⚠️ **2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요.** 이 문서의 지하철역 · 호선 · `stations` · `place_stations` 내용은 [09_BUS_TRANSIT](09_BUS_TRANSIT.md)이 대신해요.
+
 백엔드는 JPA 없이 **JdbcTemplate 으로 SQL 을 직접** 써요. 아래 쿼리는 모두 실제 코드(`backend/src/main/java/com/petplanet/...`)에 들어 있는 그대로예요.
 `:이름` 은 NamedParameterJdbcTemplate 의 바인딩 변수 (PreparedStatement `?` 와 같아요 → SQL 인젝션 방지).
 
 | # | 기능 | 기법 | 파일 |
 |---|---|---|---|
-| 1 | 역 기준 반경 장소 검색 + 다중 필터 | 공간 함수, 동적 WHERE, 파생 테이블 조인, EXISTS, 페이지 | `place/PlaceService.java` |
-| 2 | 장소의 인접역 (같은 역 이름 묶기) | N:M 조인, IN 일괄 조회 | `place/PlaceService.java` |
-| 3 | 노선도 · 역 검색 | 상관 서브쿼리 + GROUP_CONCAT, GROUP BY + MIN | `station/StationController.java` |
+| 1 | 내 위치 반경 · 지역별 장소 검색 + 다중 필터 + 가까운 정류장 | 공간 함수, 동적 WHERE, 파생 테이블 조인, EXISTS, LEFT JOIN, 상관 서브쿼리, 페이지 | `place/PlaceService.java`, `transit/BusAccess.java` |
+| 2 | 근처 버스 정류장 | 위·경도 범위로 먼저 좁히기(인덱스) + 정확한 거리, 파생 테이블 | `transit/BusService.java` |
+| 3 | 지역 목록 (시도 → 시군구, 개수) | GROUP BY 집계 | `transit/RegionController.java` |
 | 4 | 통합 리뷰 목록 · 별점 분포 | 집계, CASE, 상관 서브쿼리, COALESCE 조인 | `review/ReviewService.java` |
 | 5 | 리뷰 작성 자격 | 조인 + 상태 조건 | `review/ReviewService.java` |
 | 6 | 회원가입 (계정 + 반려동물) | **트랜잭션** | `user/UserService.java` |
@@ -21,19 +23,24 @@
 
 ---
 
-## 1. 역 기준 반경 장소 검색 + 다중 필터 (S02)
+## 1. 내 위치 반경 · 지역별 장소 검색 + 다중 필터 (S02)
 
 ```sql
 SELECT p.place_id, p.name, p.category_id, c.name AS category_name, p.address, p.latitude, p.longitude,
        p.allowed_size, p.indoor_outdoor, p.image_url,
        COALESCE(r.avg_rating, 0) AS avg_rating, COALESCE(r.review_count, 0) AS review_count,
        EXISTS (SELECT 1 FROM place_bookmarks b WHERE b.place_id = p.place_id AND b.user_id = :uid) AS bookmarked,
+       p.sido, p.sigungu, p.nearest_stop_id, p.nearest_stop_m, p.stops_500m, bs.name AS stop_name,
+       (SELECT COUNT(DISTINCT brs.route_id) FROM bus_route_stops brs WHERE brs.stop_id = p.nearest_stop_id) AS stop_route_count,
        ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:slng, :slat)) / 1000 AS distance_km
 FROM places p
 LEFT JOIN place_categories c ON c.category_id = p.category_id
 LEFT JOIN (SELECT target_id, ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS review_count
            FROM reviews WHERE target_type = 'PLACE' GROUP BY target_id) r ON r.target_id = p.place_id
-WHERE ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:slng, :slat)) <= :radiusM   -- 0.5km / 1km
+LEFT JOIN bus_stops bs ON bs.stop_id = p.nearest_stop_id                                    -- 가장 가까운 버스 정류장
+WHERE ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:slng, :slat)) <= :radiusM   -- 내 근처: 1 · 3 · 5km
+  -- 또는 지역별: p.sido = :sido AND p.sigungu = :sigungu
+  AND p.nearest_stop_m <= 300                         -- 정류장 300m 안 (선택)
   AND p.category_id IN (:categoryIds)                 -- 카테고리 OR
   AND p.allowed_size IN ('MEDIUM', 'LARGE')           -- 고른 크기를 "모두" 데려갈 수 있는 곳
   AND p.indoor_outdoor IN ('INDOOR', 'BOTH')          -- 실내
@@ -43,36 +50,35 @@ LIMIT :limit OFFSET :offset;
 - 조건은 사용자가 고른 것만 붙여요 (동적 WHERE). 같은 WHERE 로 `SELECT COUNT(*)` 를 한 번 더 해서 `totalElements` 를 만들어요.
 - 리뷰 평균은 **파생 테이블**로 장소별로 한 번만 집계한 뒤 LEFT JOIN (리뷰가 없으면 0).
 - 크기 필터: 소형+중형을 고르면 "둘 다 데려갈 수 있는 곳" = 최대 크기가 중형 이상 → `IN ('MEDIUM','LARGE')`.
+- 가장 가까운 정류장(`nearest_stop_id` · `nearest_stop_m` · `stops_500m`)은 적재기가 미리 계산해 둔 값이라, 정류장 20만 곳과 매번 거리를 재지 않아요. `sort=transit` 은 `ORDER BY p.nearest_stop_m IS NULL, p.nearest_stop_m`.
 
-## 2. 장소의 인접역 — place_stations (N:M)
-
-```sql
-SELECT ps.place_id, ps.distance_km, s.station_id, s.name, s.line, s.seq, s.latitude, s.longitude
-FROM place_stations ps
-JOIN stations s ON s.station_id = ps.station_id
-WHERE ps.place_id IN (:ids)                   -- 한 페이지의 장소를 한 번에 (N+1 쿼리 방지)
-ORDER BY ps.place_id, ps.distance_km, s.station_id;
-```
-- `place_stations.distance_km` 는 적재 때 하버사인 공식으로 미리 계산해 둔 값 (반경 1km 이내만 저장).
-- 같은 역 이름(홍대입구 2호선·경의중앙선·공항철도)은 가장 가까운 행 하나로 묶고 호선은 `lines` 배열로 보내요.
-
-## 3. 노선도 · 역 이름 검색 (S02)
+## 2. 근처 버스 정류장 (장소 상세 "버스로 가기")
 
 ```sql
--- 노선도: 2호선 역을 순서대로 + 이 역을 지나는 모든 호선 (환승 표시)
-SELECT s.station_id, s.name, s.line, s.seq, s.latitude, s.longitude,
-       (SELECT GROUP_CONCAT(s2.line ORDER BY s2.station_id SEPARATOR ',')
-          FROM stations s2 WHERE s2.name = s.name) AS line_codes      -- LINES 는 예약어라 line_codes
-FROM stations s
-WHERE s.line = :line
-ORDER BY s.seq, s.station_id;
-
--- 역 이름 검색: 같은 이름은 가장 먼저 등록된 행 하나만
-SELECT ... FROM stations s
-WHERE s.station_id IN (SELECT MIN(station_id) FROM stations
-                       WHERE name LIKE CONCAT('%', :kw, '%') GROUP BY name)
-ORDER BY s.station_id LIMIT 10;
+SELECT * FROM (
+    SELECT s.stop_id, s.name, s.latitude, s.longitude, s.city_code, s.city_name,
+           ROUND(ST_Distance_Sphere(POINT(s.longitude, s.latitude), POINT(:lng, :lat))) AS dist_m,
+           (SELECT COUNT(DISTINCT brs.route_id) FROM bus_route_stops brs WHERE brs.stop_id = s.stop_id) AS route_count
+    FROM bus_stops s
+    WHERE s.latitude BETWEEN :lat - :dLat AND :lat + :dLat            -- 1) 위·경도 범위로 먼저 좁히고 (idx_bus_stops_coordinates)
+      AND s.longitude BETWEEN :lng - :dLng AND :lng + :dLng
+) t
+WHERE t.dist_m <= :r                                                  -- 2) 남은 몇 곳만 정확한 구면 거리
+ORDER BY t.dist_m, t.stop_id
+LIMIT :limit;
 ```
+- `dLat = r / 111,320m`, `dLng = r / (111,320m × cos 위도)` — 반경 r 을 감싸는 사각형.
+- 정류장 ↔ 노선은 N:M(`bus_route_stops`)이라 노선 수는 상관 서브쿼리로 세요.
+
+## 3. 지역 목록 (지역별 탐색의 시도 → 시군구)
+
+```sql
+SELECT sido, sigungu, COUNT(*) AS cnt
+FROM places                 -- type 에 따라 hospitals · pet_hotels
+WHERE sido IS NOT NULL
+GROUP BY sido, sigungu;
+```
+- 시도 순서(서울 → … → 제주)와 시군구 가나다순 정렬은 자바에서 해요. 데이터가 있는 지역만 나와요.
 
 ## 4. 통합 리뷰 — 한 테이블에 장소·상품·병원
 
@@ -241,8 +247,10 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), address = VALUES(address),
 
 | 인덱스 | 쓰는 쿼리 |
 |---|---|
-| `stations.idx_line_seq (line, seq)` | 3 노선도 |
-| `place_stations.uk_place_station`, `idx_station_id` | 2 인접역 |
+| `places.idx_places_region (sido, sigungu)` (병원 · 호텔도) | 1 지역별 검색, 3 지역 목록 |
+| `places.idx_places_stop_m (nearest_stop_m)` | 1 정류장 300m · 정류장 가까운 순 |
+| `bus_stops.idx_bus_stops_coordinates (latitude, longitude)` | 2 근처 정류장 (범위 검색) |
+| `bus_route_stops.idx_bus_route_stops_stop (stop_id)` | 1 · 2 정류장을 지나는 노선 수 |
 | `place_bookmarks.uk_user_place (user_id, place_id)` | 1 찜 여부(EXISTS), 찜 중복 409 |
 | `reviews.idx_target (target_type, target_id)`, `uk_review_once` | 4 리뷰 목록·집계, 1인 1리뷰 |
 | `hospital_reservations.idx_hospital_time (hospital_id, reservation_date)` | 7 마감 시간, 예약 중복 검사 |

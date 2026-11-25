@@ -1,12 +1,13 @@
 # PET PLANET
 
-> 지하철역에서 시작하는 반려생활 플랫폼 — 역 반경 1km 동반 장소 탐색 · 동물병원/펫 호텔 예약 · 펫 스토어를 한 계정으로
+> 대중교통(버스)으로 갈 수 있는 곳을 찾는 반려생활 플랫폼 — 내 근처 · 지역별 동반 장소 탐색 + 가까운 버스 정류장 · 노선 · 실시간 도착 · 동물병원/펫 호텔 예약 · 펫 스토어를 한 계정으로
+> (2026-11-25 지하철 → 버스 · 지역별 탐색으로 전환: [docs/09](docs/09_BUS_TRANSIT.md))
 
-3주(15일) DB 프로젝트. 화면은 **지하철 노선도 콘셉트**로, 서비스를 4개 노선으로 분리.
+3주(15일) DB 프로젝트. 화면은 **노선도 콘셉트**로, 서비스를 4개 노선으로 분리.
 
 | 노선 | 이름 | 화면 | FE | BE | 테이블 |
 |---|---|---|---|---|---|
-| **E** | 탐색선 | 메인 홈, 역세권 탐색, 장소 상세 | FE1 | BE1 | stations, places, place_categories, place_stations, place_bookmarks |
+| **E** | 탐색선 | 메인 홈, 내 근처 · 지역별 탐색, 장소 상세 | FE1 | BE1 (+BE2: 버스 · 지역) | places, place_categories, place_bookmarks, bus_stops, bus_routes, bus_route_stops |
 | **R** | 예약선 | 동물병원 상세·예약, 펫 호텔 예약 | FE2 | BE2 | hospitals, hospital_reservations, pet_hotels, room_types, hotel_reservations |
 | **S** | 쇼핑선 | 펫 스토어, 장바구니·주문서 | FE2 | BE2 | products, product_categories, cart_items, orders, order_items |
 | **M** | 마이선 | 회원가입, 마이페이지 | FE1 (+FE2: 예약·주문 칸) | BE1 (+BE2) | users, pets, reviews |
@@ -50,9 +51,10 @@ npm run test:unit               # node:test 23개
 mysql -u root -p < db/schema_full.sql            # ⚠️ 테이블을 DROP 후 다시 만들어요 (공용 DB면 팀에 먼저 공유)
 mysql -u root -p < db/patch_v2_proposed.sql
 mysql -u root -p < db/patch_be2_public_data.sql
-mysql -u root -p < db/seed_dev_places.sql        # 지하철역 + 장소
+mysql -u root -p < db/patch_bus_transit.sql      # 지하철 테이블 삭제 · 버스 테이블 · 지역/정류장 칼럼
+mysql -u root -p < db/seed_dev_places.sql        # 장소 (서울 시연용)
 mysql -u root -p < db/seed_demo.sql              # 시연 계정·제휴 병원/호텔·상품·예약·주문·리뷰
-# (선택) 전국 동물병원·펫호텔 공공데이터 → db/loader/README.md
+# (선택) 전국 동물병원·펫호텔·동반 장소·버스 정류장 공공데이터 → db/loader/README.md
 
 # 2) 백엔드 (http://localhost:8080)
 cd backend
@@ -88,5 +90,5 @@ npm run dev
 
 ## 데이터 출처
 
-공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보, 지방행정 인허가 데이터(동물병원·동물위탁관리업), 한국문화정보원 반려동물 동반 가능 시설(영업시간·휴무일) · 지도: 카카오맵 API
+공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’(한국문화정보원), 지방행정 인허가 데이터(동물병원·동물위탁관리업), 국토교통부 전국 버스정류장 위치정보 · 버스노선별 경유정류장 · (TAGO) 버스도착정보 · 지도 · 길찾기 · 후기 링크: 카카오맵
 시연용 제휴 병원·호텔·상품·회원·리뷰는 **가상 데이터**예요 (`db/seed_demo.sql`, 주소에 “시연용” 표시).

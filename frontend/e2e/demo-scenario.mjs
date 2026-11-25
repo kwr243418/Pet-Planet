@@ -59,18 +59,22 @@ try {
   check((await page.locator('.pet-ticket b').first().innerText()) === '보리', '홈 체중 배너에 내 반려동물(보리 18kg)');
   check((await page.locator('.room-row.is-no').count()) === 1, '18kg → 미디엄 룸(15kg) 입실 불가 표시');
 
-  step('Step 2 · 지하철역 & 장소 탐색 (S01 → S02 → S03)');
+  step('Step 2 · 지역별 장소 탐색 (S01 → S02 → S03)');
   await page.evaluate(() => window.scrollTo(0, 2000));
-  await page.getByRole('link', { name: /우리 역 주변 찾기/ }).click();
+  await page.getByRole('link', { name: /지역으로 찾기/ }).click();
   await wait(1500);
   check((await page.evaluate(() => window.scrollY)) === 0, '화면 이동 시 맨 위부터');
-  check((await page.locator('.line-diagram__stop.is-selected').innerText()) === '홍대입구', '기본 역: 2호선 홍대입구');
-  check((await page.title()).includes('홍대입구역'), '탭 제목에 역 이름', await page.title());
-  const total = Number(await page.locator('.results__count b').innerText());
+  await page.locator('.region-picker select').first().selectOption('서울');
+  await wait(800);
+  await page.locator('.region-picker select').nth(1).selectOption('마포구');
+  await wait(1200);
+  check((await page.title()).includes('서울 마포구'), '탭 제목에 지역 이름', await page.title());
+  const total = Number((await page.locator('.results__count b').innerText()).replace(/\D/g, ''));
   await page.getByRole('button', { name: '카페', exact: true }).click();
   await wait(1000);
-  const cafes = Number(await page.locator('.results__count b').innerText());
+  const cafes = Number((await page.locator('.results__count b').innerText()).replace(/\D/g, ''));
   check(cafes > 0 && cafes < total, `카테고리 필터 (전체 ${total} → 카페 ${cafes})`);
+  check((await page.locator('.place-card .transit-badge').count()) > 0, '카드마다 가까운 버스 정류장 · 등급');
   await page.getByRole('button', { name: '소형', exact: true }).click();
   await wait(1000);
   check((await page.locator('.place-card').count()) > 0, '크기 필터(소형) 결과 있음');
@@ -79,11 +83,12 @@ try {
   check((await page.locator('.place-card.is-selected').count()) === 1, '지도 핀 → 같은 번호 카드 강조');
   await page.locator('.place-card a').first().click();
   await wait(1500);
-  check((await page.locator('.crumb').innerText()).replace(/\s+/g, ' ').includes('2호선 › 홍대입구 › 카페'), '경로: 호선 › 역 › 카테고리');
+  check((await page.locator('.crumb').innerText()).replace(/\s+/g, ' ').includes('서울 › 마포구 › 카페'), '경로: 시도 › 시군구 › 카테고리');
+  check(await page.locator('.transit-panel').isVisible(), '버스로 가기: 가까운 정류장 · 반려동물 버스 이용 안내');
   await page.getByRole('button', { name: '관심 장소 찜하기' }).click();
   await wait(900);
   check(await page.getByRole('button', { name: '찜한 장소예요' }).isVisible(), '관심 장소 찜');
-  check((await page.locator('.now-station__stop.is-current').innerText()) === '관심 장소 찜', 'NOW STATION 마지막 단계');
+  check((await page.locator('.now-station__stop.is-current').innerText()) === '관심 장소 찜', 'NEXT STOP 마지막 단계');
 
   step('Step 5 · 통합 리뷰 & 별점 (S03 → S08)');
   const before = Number((await page.locator('.detail-hero__rating .muted').innerText()).replace(/\D/g, ''));
@@ -98,7 +103,7 @@ try {
   check(await page.getByText('작성 중인 리뷰가 있어요').isVisible(), '작성 중 닫기 → 확인창');
   await page.getByRole('alertdialog').getByRole('button', { name: '취소' }).click();
   await page.getByRole('radio', { name: '5점' }).click();
-  await page.locator('textarea').fill('역에서 가까워서 시연 때도 쉽게 찾아갔어요!');
+  await page.locator('textarea').fill('정류장에서 가까워서 시연 때도 쉽게 찾아갔어요!');
   await page.getByRole('button', { name: '리뷰 등록' }).click();
   await wait(1200);
   const after = Number((await page.locator('.detail-hero__rating .muted').innerText()).replace(/\D/g, ''));
@@ -116,7 +121,7 @@ try {
   check(await page.getByText('다른 장소 둘러보기').isVisible(), '없는 장소 → 안내 + 다른 장소 링크');
   await page.goto(`${BASE}/no-such-page`);
   await wait(500);
-  check(await page.getByText('없는 역이에요').isVisible(), '없는 주소 → 404 화면');
+  check(await page.getByText('없는 정류장이에요').isVisible(), '없는 주소 → 404 화면');
   await ctx.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await wait(200);

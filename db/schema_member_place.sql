@@ -1,5 +1,7 @@
 -- ============================================================================
 -- Pet-Planet Database Schema - Part A/B: Member & Place Domains
+-- ⚠️ 2026-11-25: 지하철(stations · place_stations)을 지우고 버스로 바꿨어요. 최신 전체 스키마는
+--    schema_full.sql + patch_bus_transit.sql 이에요 (docs/09_BUS_TRANSIT.md).
 -- MySQL 8.0 / MariaDB 10.5+ Compatible
 -- ============================================================================
 -- Database: petplanet
@@ -36,11 +38,9 @@ DROP TABLE IF EXISTS users;
 
 -- Create order: parent tables before child tables (respecting FK dependencies)
 -- 1. Create users (no dependencies)
--- 2. Create stations (no dependencies)
 -- 3. Create place_categories (no dependencies)
 -- 4. Create pets (references users)
 -- 5. Create places (references place_categories)
--- 6. Create place_stations (references places, stations)
 -- 7. Create place_bookmarks (references users, places)
 
 -- 1. users Table
@@ -60,19 +60,6 @@ CREATE TABLE users (
 -- ============================================================================
 -- PART B: PLACE DOMAIN (5 Tables)
 -- ============================================================================
-
--- 3. stations Table (지하철역)
-CREATE TABLE stations (
-    station_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '역 ID',
-    name VARCHAR(50) NOT NULL COMMENT '역명',
-    line VARCHAR(20) NOT NULL COMMENT '호선',
-    latitude DECIMAL(10,7) NOT NULL COMMENT '위도',
-    longitude DECIMAL(10,7) NOT NULL COMMENT '경도',
-
-    INDEX idx_name (name),
-    INDEX idx_line (line),
-    INDEX idx_coordinates (latitude, longitude)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='지하철역';
 
 -- 4. place_categories Table
 CREATE TABLE place_categories (
@@ -123,23 +110,6 @@ CREATE TABLE places (
     INDEX idx_coordinates (latitude, longitude),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='반려동물 동반 가능 장소';
-
--- 6. place_stations Table (N:M 관계 - 장소와 역, both parents already created)
-CREATE TABLE place_stations (
-    mapping_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '매핑 ID',
-    place_id BIGINT NOT NULL COMMENT '장소 ID',
-    station_id BIGINT NOT NULL COMMENT '역 ID',
-    distance_km DECIMAL(4,2) NOT NULL COMMENT '거리(km)',
-
-    CONSTRAINT fk_place_stations_place_id FOREIGN KEY (place_id)
-        REFERENCES places(place_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_place_stations_station_id FOREIGN KEY (station_id)
-        REFERENCES stations(station_id) ON DELETE CASCADE ON UPDATE CASCADE,
-
-    UNIQUE KEY uk_place_station (place_id, station_id),
-    INDEX idx_station_id (station_id),
-    INDEX idx_distance (distance_km)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='장소-역 매핑';
 
 -- 7. place_bookmarks Table (N:M 관계 - 사용자와 장소 북마크, both parents already created)
 CREATE TABLE place_bookmarks (

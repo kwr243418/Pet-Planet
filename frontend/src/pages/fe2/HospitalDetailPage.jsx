@@ -11,6 +11,9 @@ import { usePageTitle } from '../../hooks/usePage.js';
 import { formatDate } from '../../utils/format.js';
 import RouteGuide from '../../components/nearby/RouteGuide.jsx';
 import { readOrigin } from '../../utils/origin.js';
+import TransitPanel from '../../components/transit/TransitPanel.jsx';
+import TransitBadge from '../../components/transit/TransitBadge.jsx';
+import KakaoReviewLink from '../../components/transit/KakaoReviewLink.jsx';
 import './fe2.css';
 
 const PAGE_SIZE = 3;
@@ -61,7 +64,9 @@ export default function HospitalDetailPage() {
   const avg = summary?.avgRating ?? hospital.avgRating ?? 0;
   const dist = summary?.distribution ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   const shown = [...(reviewsQ.data?.content ?? []), ...more.items];
-  const station = hospital.nearestStation;
+  const access = hospital.busAccess;
+  // 공공데이터로 들어온 병원(비제휴)은 펫 플래닛 예약을 받지 않아서 펫 플래닛 리뷰도 쌓이지 않아요 → 0점 대신 안내 + 카카오맵 후기 링크
+  const noOwnReviews = !hospital.partner && count === 0;
 
   return (
     <>
@@ -78,20 +83,25 @@ export default function HospitalDetailPage() {
         {/* 병원 헤더 */}
         <section className="card fe2-hospital">
           <div className="fe2-hospital__tags">
-            {hospital.partner && <Tag tone="mint">제휴 병원</Tag>}
-            {station && (
-              <Tag>
-                {station.stationName}역 {station.distanceKm}km
-              </Tag>
-            )}
+            {hospital.partner ? <Tag tone="mint">제휴 병원</Tag> : <Tag>공공데이터 병원</Tag>}
+            {hospital.sigungu && <Tag>{[hospital.sido, hospital.sigungu].join(' ')}</Tag>}
           </div>
           <h2 className="fe2-hospital__name">{hospital.name}</h2>
-          <div className="fe2-hospital__rating">
-            <span className="fe2-hospital__score en">{avg.toFixed(1)}</span>
-            <span className="fe2-hospital__max">/ 5.0</span>
-            <Stars value={avg} size={20} />
-            <span className="fe2-hospital__count">리뷰 {count}개</span>
-          </div>
+          {noOwnReviews ? (
+            <div className="fe2-hospital__rating fe2-hospital__rating--none">
+              <span className="fe2-hospital__count">펫 플래닛 제휴 병원이 아니라 이용 인증 리뷰가 없어요.</span>
+              <KakaoReviewLink name={hospital.name} sigungu={hospital.sigungu} />
+            </div>
+          ) : (
+            <div className="fe2-hospital__rating">
+              <span className="fe2-hospital__score en">{avg.toFixed(1)}</span>
+              <span className="fe2-hospital__max">/ 5.0</span>
+              <Stars value={avg} size={20} />
+              <span className="fe2-hospital__count">펫 플래닛 리뷰 {count}개</span>
+              <KakaoReviewLink name={hospital.name} sigungu={hospital.sigungu} />
+            </div>
+          )}
+          <TransitBadge access={access} />
           <dl className="fe2-info">
             <dt>진료시간</dt>
             <dd>{hospital.operatingHours ?? '병원에 문의해 주세요'}</dd>
@@ -104,6 +114,7 @@ export default function HospitalDetailPage() {
 
         {/* 가는 방법 (주변 탐색에서 고른 출발점 기준) */}
         <RouteGuide origin={readOrigin()} dest={{ name: hospital.name, lat: hospital.lat, lng: hospital.lng }} />
+        <TransitPanel dest={{ name: hospital.name, lat: hospital.lat, lng: hospital.lng, busAccess: access }} />
 
         {/* 탭 */}
         <div className="fe2-tabs">
@@ -113,7 +124,7 @@ export default function HospitalDetailPage() {
             value={tab}
             onChange={setTab}
             options={[
-              { value: 'reviews', label: `방문 리뷰 (${count})` },
+              { value: 'reviews', label: `펫 플래닛 리뷰 (${count})` },
               { value: 'info', label: '병원 소개 · 진료 안내' },
             ]}
           />
@@ -148,7 +159,12 @@ export default function HospitalDetailPage() {
             ) : reviewsQ.loading && !reviewsQ.data ? (
               <PageLoader />
             ) : count === 0 ? (
-              <EmptyState compact title="아직 방문 리뷰가 없어요" desc="진료를 받은 뒤 첫 리뷰를 남겨 보세요." />
+              <EmptyState
+                compact
+                title="아직 방문 리뷰가 없어요"
+                desc={hospital.partner ? '진료를 받은 뒤 첫 리뷰를 남겨 보세요.' : '펫 플래닛 리뷰는 예약 · 진료를 마친 회원만 쓸 수 있어요.\n다른 이용자의 후기는 카카오맵에서 볼 수 있어요.'}
+                action={<KakaoReviewLink name={hospital.name} sigungu={hospital.sigungu} />}
+              />
             ) : (
               <div className="fe2-reviews__list">
                 {shown.map((r) => (
@@ -188,7 +204,7 @@ export default function HospitalDetailPage() {
             </p>
             <h3>오시는 길</h3>
             <p>
-              {station ? `${(station.lines ?? [station.line]).join(', ')} ${station.stationName}역에서 약 ${station.distanceKm}km` : '가까운 지하철역 정보가 없어요'}
+              {access?.stopId ? `${access.stopName} 정류장에서 걸어서 약 ${access.walkMin}분 (${access.distanceM}m)` : '가까운 버스 정류장 정보가 없어요'}
               <br />
               {hospital.address}
             </p>

@@ -28,6 +28,10 @@ petplanet:
   # 실제 서비스라면 false — 병원·호텔 사업자(BUSINESS)나 관리자(ADMIN)만 바꿀 수 있어요.
   demo-mode: true
   cors-origins: http://localhost:5173
+  # 버스 실시간 도착정보 (국토교통부 TAGO) — 공공데이터포털 "일반 인증키(Decoding)".
+  # 커밋하지 말고 환경변수 TAGO_SERVICE_KEY 나 application-local.yml 에 넣어요. 비어 있으면 화면에 "준비 중"으로 나와요.
+  tago:
+    service-key: ${TAGO_SERVICE_KEY:}
 
 logging:
   level:

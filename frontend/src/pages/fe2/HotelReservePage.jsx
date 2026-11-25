@@ -161,7 +161,7 @@ export default function HotelReservePage() {
     );
   }
 
-  const station = hotel.nearestStation;
+  const stop = hotel.busAccess;
 
   return (
     <>
@@ -182,7 +182,7 @@ export default function HotelReservePage() {
               options={hotels.map((h) => ({ value: h.hotelId, label: h.name }))}
             />
             <p className="fe2-note">
-              {[hotel.address, hotel.phone, station && `${station.stationName}역 ${station.distanceKm}km`, hotel.minPrice && `1박 ${won(hotel.minPrice)}부터`].filter(Boolean).join(' · ')}
+              {[hotel.address, hotel.phone, stop?.stopId && `${stop.stopName} 정류장 도보 ${stop.walkMin}분`, hotel.minPrice && `1박 ${won(hotel.minPrice)}부터`].filter(Boolean).join(' · ')}
             </p>
           </section>
 

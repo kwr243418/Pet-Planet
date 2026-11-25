@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { formatKm } from '../../utils/format.js';
 import { distanceFrom, formatMinutes, kakaoDirectionsUrl, PRESET_ORIGINS, saveOrigin, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
+import { petBusAdvice } from '../../utils/transit.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 /**
  * 가는 방법: 도보 · 버스 · 자동차 · 택시 중 하나를 고르면 어림 시간을 보여 주고 카카오맵 길찾기로 연결
@@ -11,6 +13,8 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
   const [modeKey, setModeKey] = useState('walk');
   const mode = TRAVEL_MODES.find((m) => m.key === modeKey);
   const km = distanceFrom(origin, dest);
+  const { primaryPet } = useAuth();
+  const busAdvice = petBusAdvice(primaryPet?.weight);
 
   const pick = (o) => {
     saveOrigin(o);
@@ -47,6 +51,12 @@ export default function RouteGuide({ origin: initialOrigin, dest }) {
             </button>
           ))}
         </div>
+      )}
+      {modeKey === 'bus' && (
+        <p className={`route-guide__pet route-guide__pet--${busAdvice.level}`}>
+          {primaryPet ? `${primaryPet.name}(${primaryPet.weight}kg): ` : ''}
+          {busAdvice.title} — 버스는 이동장에 넣은 반려동물만 탈 수 있어요.
+        </p>
       )}
       <a className="btn btn--primary btn--md route-guide__go" href={kakaoDirectionsUrl(origin, dest, mode)} target="_blank" rel="noreferrer">
         카카오맵에서 {mode.label === '택시' ? '자동차(택시)' : mode.label} 길찾기 →

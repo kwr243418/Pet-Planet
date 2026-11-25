@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { formatKm } from '../../utils/format.js';
 import { formatMinutes, kakaoDirectionsUrl, TRAVEL_MODES, travelMinutes } from '../../utils/origin.js';
+import TransitBadge from '../transit/TransitBadge.jsx';
 
 const WALK = TRAVEL_MODES.find((m) => m.key === 'walk');
 const CAR = TRAVEL_MODES.find((m) => m.key === 'car');
@@ -28,6 +29,7 @@ export function HospitalCard({ hospital: h, index, origin }) {
         <p className="facility-card__addr">{h.address}</p>
         {h.operatingHours && <p className="facility-card__hours">{h.operatingHours}</p>}
         <TravelLine km={h.distanceKm} />
+        <TransitBadge access={h.busAccess} compact />
       </div>
       <div className="facility-card__actions">
         <Link to={`/hospitals/${h.hospitalId}`} className={`btn btn--sm ${h.partner ? 'btn--primary' : 'btn--line'}`}>
@@ -55,6 +57,7 @@ export function HotelCard({ hotel: h, index, origin }) {
         <p className="facility-card__addr">{h.address}</p>
         {bookable && h.minPrice != null && <p className="facility-card__hours">1박 {h.minPrice.toLocaleString('ko-KR')}원부터</p>}
         <TravelLine km={h.distanceKm} />
+        <TransitBadge access={h.busAccess} compact />
       </div>
       <div className="facility-card__actions">
         {bookable ? (

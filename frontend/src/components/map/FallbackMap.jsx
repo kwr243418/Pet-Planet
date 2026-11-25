@@ -18,7 +18,7 @@ function useBoxSize(height) {
 
 /**
  * 카카오맵 키가 없거나 로드 실패 시 쓰는 미리보기 지도 (목업 스타일 SVG)
- * markers: [{ id, lat, lng, kind: 'place'|'station', label, num }]
+ * markers: [{ id, lat, lng, kind: 'place'|'origin', label, num }]
  */
 export default function FallbackMap({ center, markers, radiusKm, selectedId, onMarkerClick, height, label, reason }) {
   const [boxRef, W, H] = useBoxSize(height);
@@ -44,8 +44,8 @@ export default function FallbackMap({ center, markers, radiusKm, selectedId, onM
     return { scale, xy: (p) => ({ x: W / 2 + toKm(p).x * scale, y: H / 2 - toKm(p).y * scale }) };
   }, [center, markers, radiusKm, W, H]);
 
-  const places = markers.filter((m) => m.kind !== 'station');
-  const stations = markers.filter((m) => m.kind === 'station');
+  const places = markers.filter((m) => m.kind !== 'origin');
+  const stations = markers.filter((m) => m.kind === 'origin');
   const sel = (m) => String(m.id) === String(selectedId);
   const ordered = [...places].sort((a, b) => sel(a) - sel(b));
   const c = center ? proj.xy(center) : stations[0] ? proj.xy(stations[0]) : { x: W / 2, y: H / 2 };
@@ -61,8 +61,6 @@ export default function FallbackMap({ center, markers, radiusKm, selectedId, onM
         {[0.15, 0.7].map((f) => (
           <rect key={`h${f}`} x="0" y={H * f} width={W} height="14" fill="#F7F5F1" />
         ))}
-        {/* 지하철 노선 (역을 지나는 가는 금색 선) */}
-        <rect x="0" y={c.y - 1} width={W} height="2" fill="#C9A26B" />
         {radiusKm && <circle cx={c.x} cy={c.y} r={radiusKm * proj.scale} fill="#ffffff" fillOpacity=".35" stroke="#8A6A3B" strokeWidth="1" strokeDasharray="4 6" />}
 
         {stations.map((s) => {

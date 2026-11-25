@@ -34,7 +34,7 @@ export function ReviewCard({ review, onEdit, onDelete }) {
   );
 }
 
-const QUICK = ['역에서 가까워요', '실내 동반 가능해요', '물그릇을 챙겨줘요', '대형견도 편해요', '사진 찍기 좋아요'];
+const QUICK = ['정류장에서 가까워요', '실내 동반 가능해요', '물그릇을 챙겨줘요', '대형견도 편해요', '사진 찍기 좋아요'];
 
 /** 리뷰 쓰기/수정 모달 — 별점 필수, 10~500자 */
 export function ReviewModal({ open, onClose, targetId, targetName, editing, onSaved }) {

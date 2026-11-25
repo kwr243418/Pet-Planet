@@ -1,5 +1,7 @@
 # 03. API 공통 규격
 
+> ⚠️ **2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요.** 이 문서의 지하철역 · 호선 · `stations` · `place_stations` 내용은 [09_BUS_TRANSIT](09_BUS_TRANSIT.md)이 대신해요.
+
 모든 API(BE1·BE2)가 같은 모양으로 응답해야 FE가 한 군데(`frontend/src/api/client.js`)에서 처리할 수 있어요.
 백엔드 스택이 정해져도 이 규격은 그대로예요.
 

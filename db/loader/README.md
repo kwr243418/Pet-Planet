@@ -50,7 +50,7 @@ java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java \
 ## 주변 탐색용 동반 장소 적재 (`--places`, 11/25 추가)
 
 한국문화정보원 파일에서 **반려동물 동반 가능 = Y** 인 카페 · 식당 · 숙소(펜션·호텔) · 여행지 · 문화시설(박물관·미술관·문예회관)을 `places`에 넣어요.
-약국 · 병원 · 용품 · 미용 · 위탁은 "장소"가 아니라 넣지 않아요. 지하철역 반경 1km 안이면 `place_stations` 매핑도 같이 만들어요.
+약국 · 병원 · 용품 · 미용 · 위탁은 "장소"가 아니라 넣지 않아요. (11/25 지하철 매핑은 없앴고, 가까운 버스 정류장은 아래 `--bus-stops` / `--access` 가 계산해요.)
 
 ```bash
 cd db/loader
@@ -63,6 +63,26 @@ java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --kcisa kcisa.csv --p
 - 입장 가능 크기 → `allowed_size`(SMALL · MEDIUM · LARGE), 실내/실외 여부 → `indoor_outdoor`(INDOOR · OUTDOOR · BOTH).
 - ⚠️ `seed_dev_places.sql`은 places를 모두 지우고 다시 넣어요 → **seed 다음에** 적재기를 실행하세요.
 - 11/25 받은 파일 기준: 동반 가능 67,839행 중 장소 카테고리 약 2,380곳, 목포시 · 무안군 19곳(카페 5 · 여행지 13 · 펜션 1).
+
+## 버스 정류장 적재 (`--bus-stops`) · 지역 · 가까운 정류장 계산 (`--access`) — 11/25 추가
+
+지하철을 버리고 버스로 바꿨어요 ([docs/09_BUS_TRANSIT.md](../../docs/09_BUS_TRANSIT.md)).
+
+1. 공공데이터포털에서 **국토교통부_전국 버스정류장 위치정보** CSV 를 받아 이 폴더에 `bus_stops.csv` 로 두기 (로그인 없이 다운로드, 약 20만 행)
+2. 먼저 dry-run 으로 확인 — 칼럼 이름 · 서울 포함 여부 · 목포역/국립목포대학교 근처 정류장 · 목포/무안 동반 장소 등급이 나와요
+   ```bash
+   java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --bus-stops bus_stops.csv --kcisa kcisa.csv --places --dry-run
+   ```
+3. DB 저장 — 정류장 저장 뒤 places · hospitals · pet_hotels 의 지역(`sido`, `sigungu`)과 가장 가까운 정류장(`nearest_stop_id`, `nearest_stop_m`, `stops_500m`)을 다시 계산해요
+   ```bash
+   java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --bus-stops bus_stops.csv
+   ```
+
+- 칼럼 · 테이블이 없으면 적재기가 만들어요 (`db/patch_bus_transit.sql` 과 같은 내용, 여러 번 실행해도 안전). 단, 지하철 테이블 삭제는 패치 SQL 로만 해요.
+- 정류장 ID(`정류장번호`) 기준 UPSERT → 다시 실행해도 중복 없음. 칼럼 이름이 조금 달라도(`정류소명`, `GPS_LATI` …) 찾아요.
+- 장소 · 병원 · 호텔을 새로 넣으면(`--hospital` · `--hotel` · `--places`) 지역 · 가까운 정류장 계산도 자동으로 해요. 따로 다시 하려면 `--access`.
+- 가장 가까운 정류장은 2km 안에서만 찾아요. 0.01° 격자로 나눠 두고 주변 칸만 봐서 몇 초면 끝나요.
+- `--bus-routes`(버스노선별 경유정류장 API)는 활용 가이드 PDF 의 요청 형식을 확인한 뒤 추가할 예정이에요.
 
 ## 결과 (2026-11-24 받은 파일 기준, dry-run)
 

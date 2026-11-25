@@ -157,7 +157,7 @@ export default function HospitalReservePage() {
     );
   }
 
-  const station = hospital.nearestStation;
+  const stop = hospital.busAccess;
 
   return (
     <>
@@ -178,7 +178,7 @@ export default function HospitalReservePage() {
               options={hospitals.map((h) => ({ value: h.hospitalId, label: h.name }))}
             />
             <p className="fe2-note">
-              {[station && `${station.stationName}역 ${station.distanceKm}km`, hospital.operatingHours, hospital.lunchTime && `점심 ${hospital.lunchTime}`].filter(Boolean).join(' · ')}
+              {[stop?.stopId && `${stop.stopName} 정류장 도보 ${stop.walkMin}분`, hospital.operatingHours, hospital.lunchTime && `점심 ${hospital.lunchTime}`].filter(Boolean).join(' · ')}
               {'  '}
               <Link to={`/hospitals/${hospital.hospitalId}`} className="text-link">
                 별점 · 리뷰 보기

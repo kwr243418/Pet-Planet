@@ -1,4 +1,4 @@
-// 위치 계산 유틸 — BE1의 place_stations 사전 계산(하버사인)과 같은 공식을 사용합니다.
+// 위치 계산 유틸 — 백엔드 ST_Distance_Sphere · 적재기의 정류장 거리 계산(하버사인)과 같은 공식이에요.
 
 const EARTH_RADIUS_KM = 6371;
 const toRad = (deg) => (deg * Math.PI) / 180;

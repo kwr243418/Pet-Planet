@@ -96,7 +96,9 @@ export function SiteFooter() {
           </nav>
         </div>
         <p className="site-footer__src">
-          장소 · 역 데이터: 공공데이터포털 ‘전국 반려동물 동반 가능 문화시설’, 전국 지하철역 위치 정보 · 지도: 카카오맵 API · 이미지: AI 생성
+          데이터: 공공데이터포털 — 한국문화정보원 ‘반려동물 동반 가능 문화시설’, 행정안전부 동물병원 · 동물위탁관리업 인허가, 국토교통부 버스정류장 위치 · 버스도착정보
+          <br />
+          지도 · 길찾기 · 후기 링크: 카카오맵 · 위치는 주변 검색에만 쓰고 저장하지 않아요 · 이미지: AI 생성
         </p>
       </div>
     </footer>
@@ -136,7 +138,7 @@ export function PageHero({ line, en, title, desc, photo, children, compact }) {
 }
 
 /**
- * NOW STATION 표시줄 — 노선 단계를 역처럼 표시, 현재 단계만 큰 원(짙은 초록)
+ * NEXT STOP 표시줄 — 단계를 버스 노선의 정류장처럼 표시, 현재 단계만 크게
  * steps: string[], current: index
  */
 export function NowStation({ steps, current }) {
@@ -144,9 +146,9 @@ export function NowStation({ steps, current }) {
     <div className="now-station" aria-label={`진행 단계: ${steps[current]}`}>
       <div className="container now-station__inner">
         <p className="now-station__label en">
-          NOW
+          NEXT
           <br />
-          STATION
+          STOP
         </p>
         <ol className="now-station__track">
           {steps.map((s, i) => (

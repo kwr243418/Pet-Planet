@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/** docs/04 §4 장소 · §5 찜 */
+/** docs/04 §4 장소 · §5 찜 · docs/09 지역 · 버스 접근성 */
 @RestController
 @RequestMapping("/api")
 public class PlaceController {
@@ -28,21 +28,29 @@ public class PlaceController {
         this.places = places;
     }
 
+    /** 카페 · 식당 · 숙소 · 운동장 · 여행지 · 문화시설 */
+    @GetMapping("/place-categories")
+    public List<Map<String, Object>> categories() {
+        return places.categories();
+    }
+
+    /** 내 위치(lat · lng · radiusKm) 또는 지역(sido · sigungu) 기준. nearStop=true 면 버스 정류장 300m 안만. sort=distance|reviews|rating|transit */
     @GetMapping("/places")
     public PageResponse<Place> search(@RequestAttribute(name = AuthInterceptor.USER_ID, required = false) Long userId,
-                                      @RequestParam(name = "stationId", required = false) Long stationId,
                                       @RequestParam(name = "lat", required = false) Double lat,
                                       @RequestParam(name = "lng", required = false) Double lng,
                                       @RequestParam(name = "radiusKm", required = false) Double radiusKm,
+                                      @RequestParam(name = "sido", required = false) String sido,
+                                      @RequestParam(name = "sigungu", required = false) String sigungu,
+                                      @RequestParam(name = "nearStop", required = false) Boolean nearStop,
                                       @RequestParam(name = "categoryIds", required = false) String categoryIds,
                                       @RequestParam(name = "sizes", required = false) String sizes,
                                       @RequestParam(name = "indoor", required = false) String indoor,
-                                      @RequestParam(name = "lines", required = false) String lines,
                                       @RequestParam(name = "keyword", required = false) String keyword,
                                       @RequestParam(name = "sort", required = false) String sort,
                                       @RequestParam(name = "page", required = false) Integer page,
                                       @RequestParam(name = "size", required = false) Integer size) {
-        return places.search(new SearchQuery(stationId, lat, lng, radiusKm, categoryIds, sizes, indoor, lines, keyword, sort, page, size),
+        return places.search(new SearchQuery(lat, lng, radiusKm, sido, sigungu, nearStop, categoryIds, sizes, indoor, keyword, sort, page, size),
                 Auth.orAnonymous(userId));
     }
 

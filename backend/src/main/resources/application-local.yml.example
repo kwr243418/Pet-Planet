@@ -5,3 +5,8 @@ spring:
     url: jdbc:mysql://localhost:3306/petplanet?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
     username: root
     password: 내_비밀번호
+
+# (선택) 버스 실시간 도착정보 인증키 — 공공데이터포털 '국토교통부_(TAGO)_버스도착정보' 활용신청 후 "일반 인증키(Decoding)"
+#petplanet:
+#  tago:
+#    service-key: 여기에_인증키

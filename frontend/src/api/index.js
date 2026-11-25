@@ -24,16 +24,22 @@ export const petApi = {
   remove: (petId) => http.delete(`/pets/${petId}`),
 };
 
-export const stationApi = {
-  /** 노선도: 호선의 역을 순서대로 */
-  byLine: (line) => http.get('/stations', { line }),
-  search: (keyword) => http.get('/stations', { keyword }),
-  get: (stationId) => http.get(`/stations/${stationId}`),
+/** 지역별 탐색: 시/도 → 시/군/구 목록 (데이터가 있는 지역만, 개수 포함) — docs/09 */
+export const regionApi = {
+  list: (type = 'place') => http.get('/regions', { type }), // type: place | hospital | hotel
+};
+
+/** 버스 정류장 · 노선 · 실시간 도착 — docs/09 */
+export const busApi = {
+  nearby: ({ lat, lng, radiusM = 500, limit = 5 }) => http.get('/bus-stops/nearby', { lat, lng, radiusM, limit }),
+  routes: (stopId) => http.get(`/bus-stops/${encodeURIComponent(stopId)}/routes`),
+  /** { status: OK | NO_KEY | NO_CITY | UNAVAILABLE, arrivals: [{ routeNo, minutes, remainingStops, lowFloor }] } */
+  arrivals: (stopId) => http.get(`/bus-stops/${encodeURIComponent(stopId)}/arrivals`),
 };
 
 export const placeApi = {
   categories: () => http.get('/place-categories'),
-  /** @param {{stationId?, radiusKm?, categoryIds?, sizes?, indoor?, sort?, page?, size?}} q */
+  /** @param {{lat?, lng?, radiusKm?, sido?, sigungu?, nearStop?, categoryIds?, sizes?, indoor?, sort?, page?, size?}} q  sort: distance|reviews|rating|transit */
   search: (q) => http.get('/places', q),
   get: (placeId) => http.get(`/places/${placeId}`),
   bookmark: (placeId) => http.post(`/places/${placeId}/bookmark`),
@@ -59,7 +65,7 @@ export const reviewApi = {
 // ─────────────────────────────────────────────────────────────
 
 export const hospitalApi = {
-  list: (q) => http.get('/hospitals', q), // { stationId? | lat?+lng?, radiusKm?, keyword?, page?, size? }
+  list: (q) => http.get('/hospitals', q), // { lat?+lng?+radiusKm? | sido?+sigungu?, nearStop?, keyword?, partner?, page?, size? }
   get: (hospitalId) => http.get(`/hospitals/${hospitalId}`),
   availableTimes: (hospitalId, date) => http.get(`/hospitals/${hospitalId}/available-times`, { date }),
   reserve: ({ hospitalId, petId, reservationDate }) => http.post('/hospital-reservations', { hospitalId, petId, reservationDate }),
@@ -70,7 +76,7 @@ export const hospitalApi = {
 };
 
 export const hotelApi = {
-  list: (q) => http.get('/pet-hotels', q),
+  list: (q) => http.get('/pet-hotels', q), // { lat?+lng?+radiusKm? | sido?+sigungu?, nearStop?, bookable?, page?, size? }
   get: (hotelId) => http.get(`/pet-hotels/${hotelId}`),
   /** 객실별 상태: AVAILABLE | OVERWEIGHT | BOOKED */
   rooms: (hotelId, { petId, checkIn, checkOut }) => http.get(`/pet-hotels/${hotelId}/rooms`, { petId, checkIn, checkOut }),

@@ -1764,3 +1764,335 @@ h3,
   letter-spacing: 0.08em;
   color: var(--on-night-2);
 }
+
+/* ==========================================================================
+   버스 · 지역별 탐색 (2026-11-25, docs/09)
+   ========================================================================== */
+.explore-mode {
+  margin-top: 40px;
+}
+.explore-mode + .origin-picker,
+.explore-mode + .region-picker {
+  margin-top: 16px;
+}
+.origin-picker__privacy {
+  margin-top: 14px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3, #8b867c);
+}
+
+/* 지역 선택 */
+.region-picker {
+  padding: 28px 32px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+}
+.region-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+.region-picker__select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+.region-picker__select select {
+  min-width: 220px;
+}
+.region-picker__label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.region-picker__empty {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+/* 접근성 배지: [A] 목포역 앞 정류장 도보 2분 */
+.transit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.transit-badge--compact {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.transit-badge__grade {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  border: 1px solid var(--night);
+  color: var(--night);
+  flex: none;
+}
+.transit-badge--A .transit-badge__grade {
+  background: var(--night);
+  color: var(--gold);
+}
+.transit-badge--B .transit-badge__grade {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--night);
+}
+.transit-badge--C .transit-badge__grade {
+  background: var(--beige-soft);
+}
+.transit-badge--D .transit-badge__grade {
+  border-color: var(--ring);
+  color: var(--ink-2);
+}
+.transit-badge__routes {
+  color: var(--ink-2);
+}
+.place-card__region {
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--gold-ink);
+}
+.grade-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.grade-legend b {
+  font-weight: 400;
+  color: var(--night);
+  margin-right: 4px;
+}
+
+/* 버스로 가기 패널 */
+.transit-panel {
+  padding: 32px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+}
+.fe2 .transit-panel {
+  margin-top: 16px;
+}
+.transit-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.transit-panel__head .transit-badge {
+  margin-top: 0;
+}
+.transit-panel__none {
+  margin-top: 20px;
+}
+.transit-panel__body {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+@media (max-width: 760px) {
+  .transit-panel__body {
+    grid-template-columns: 1fr;
+  }
+}
+.stop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+.stop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 12px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+}
+.stop-item:hover {
+  background: var(--beige-soft);
+}
+.stop-item.is-on {
+  background: var(--night);
+  color: var(--on-night);
+}
+.stop-item__name {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 16px;
+}
+.stop-item__meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.stop-detail {
+  padding: 4px 0;
+}
+.stop-detail__label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.stop-detail__routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.route-chip {
+  padding: 4px 10px;
+  font-size: 13px;
+  border: 1px solid var(--night);
+}
+.stop-detail__empty {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.stop-detail__arrivals {
+  margin-top: 20px;
+}
+.arrival-list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+.arrival-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 14px;
+}
+.arrival-list li b {
+  min-width: 64px;
+  font-weight: 400;
+  font-size: 17px;
+}
+.arrival-list__low {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-size: 11px;
+  border: 1px solid var(--gold);
+  color: var(--gold-ink);
+}
+.arrival-list__src {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+/* 반려동물과 버스 타기 */
+.pet-bus {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--hairline);
+}
+.pet-bus__advice {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.pet-bus__card {
+  padding: 18px 20px;
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--ring);
+}
+.pet-bus__card--ok {
+  border-left-color: var(--gold);
+}
+.pet-bus__card--caution {
+  border-left-color: var(--gold-ink);
+}
+.pet-bus__card--no {
+  border-left-color: var(--night);
+  background: var(--beige-soft);
+}
+.pet-bus__who {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+.pet-bus__title {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 17px;
+}
+.pet-bus__desc {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.pet-bus__rules {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.pet-bus__assist {
+  color: var(--gold-ink);
+}
+.pet-bus__note {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.route-guide__pet {
+  margin-top: 14px;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-left: 3px solid var(--gold);
+  background: var(--beige-soft);
+}
+.route-guide__pet--no {
+  border-left-color: var(--night);
+}
+
+/* 후기: 펫 플래닛 리뷰 + 카카오맵 링크 */
+.section-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.review-source {
+  margin: -8px 0 16px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.fe2-hospital__rating .btn {
+  margin-left: auto;
+}
+.fe2-hospital__rating--none {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}

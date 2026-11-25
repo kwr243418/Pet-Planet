@@ -9,10 +9,8 @@ import com.petplanet.common.Times;
 import com.petplanet.pet.PetService;
 import com.petplanet.pet.PetService.Pet;
 import com.petplanet.reservation.ReservationPolicy;
-import com.petplanet.station.Origin;
-import com.petplanet.station.StationDirectory;
-import com.petplanet.station.StationDirectory.Station;
-import com.petplanet.station.StationDirectory.StationRef;
+import com.petplanet.transit.BusAccess;
+import com.petplanet.transit.Origin;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -32,11 +30,10 @@ import java.util.Set;
 @Service
 public class HotelService {
 
-    private static final double NEAREST_MAX_KM = 3.0;
     private static final int MAX_NIGHTS = 30;
 
     public record Hotel(long hotelId, String name, String address, String phone, double lat, double lng, boolean partner,
-                        long roomCount, Integer minPrice, StationRef nearestStation, Double distanceKm, List<Room> rooms) {
+                        long roomCount, Integer minPrice, String sido, String sigungu, BusAccess busAccess, Double distanceKm, List<Room> rooms) {
     }
 
     /** status: AVAILABLE(입실 가능) | OVERWEIGHT(체중 초과) | BOOKED(기간 겹침). 객실 정보만 볼 때는 null */
@@ -63,17 +60,16 @@ public class HotelService {
     private static final String SELECT = """
             SELECT ht.hotel_id, ht.user_id, ht.name, ht.address, ht.phone, ht.latitude, ht.longitude,
                    (SELECT COUNT(*) FROM room_types rt WHERE rt.hotel_id = ht.hotel_id) AS room_count,
-                   (SELECT MIN(rt.price_per_night) FROM room_types rt WHERE rt.hotel_id = ht.hotel_id) AS min_price
-            """;
+                   (SELECT MIN(rt.price_per_night) FROM room_types rt WHERE rt.hotel_id = ht.hotel_id) AS min_price,
+            """ + BusAccess.columns("ht") + "\n";
+    private static final String FROM = " FROM pet_hotels ht" + BusAccess.join("ht");
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final StationDirectory stations;
     private final PetService pets;
     private final ReservationPolicy policy;
 
-    public HotelService(NamedParameterJdbcTemplate jdbc, StationDirectory stations, PetService pets, ReservationPolicy policy) {
+    public HotelService(NamedParameterJdbcTemplate jdbc, PetService pets, ReservationPolicy policy) {
         this.jdbc = jdbc;
-        this.stations = stations;
         this.pets = pets;
         this.policy = policy;
     }
@@ -85,16 +81,17 @@ public class HotelService {
             Double minPrice = Rs.dbl(rs, "min_price");
             return new Hotel(rs.getLong("hotel_id"), rs.getString("name"), rs.getString("address"), rs.getString("phone"), lat, lng,
                     Rs.longOrNull(rs, "user_id") != null, rs.getLong("room_count"), minPrice == null ? null : minPrice.intValue(),
-                    stations.nearest(lat, lng, NEAREST_MAX_KM), withDistance ? Rs.km(rs, "distance_km") : null, null);
+                    rs.getString("sido"), rs.getString("sigungu"), BusAccess.from(rs), withDistance ? Rs.km(rs, "distance_km") : null, null);
         };
     }
 
-    /** GET /pet-hotels — bookable=true 면 객실이 등록된(예약 가능한) 호텔만 */
-    public PageResponse<Hotel> list(Long stationId, Double lat, Double lng, Double radiusKm, String keyword, Boolean bookable, Integer page, Integer size) {
+    /** GET /pet-hotels — 내 위치 반경 또는 지역(sido · sigungu) · 정류장 300m(nearStop), bookable=true 면 객실이 등록된(예약 가능한) 호텔만 */
+    public PageResponse<Hotel> list(Double lat, Double lng, Double radiusKm, String sido, String sigungu, Boolean nearStop,
+                                    String keyword, Boolean bookable, Integer page, Integer size) {
         Paging paging = Paging.of(page, size, 10, 50);
         MapSqlParameterSource p = new MapSqlParameterSource();
         List<String> where = new ArrayList<>();
-        Station origin = Origin.resolve(stations, stationId, lat, lng);
+        Origin.Point origin = Origin.resolve(lat, lng);
         if (origin != null) {
             p.addValue("slat", origin.lat()).addValue("slng", origin.lng());
             if (radiusKm != null && radiusKm > 0) {
@@ -106,27 +103,28 @@ public class HotelService {
             where.add("(ht.name LIKE CONCAT('%', :kw, '%') OR ht.address LIKE CONCAT('%', :kw, '%'))");
             p.addValue("kw", keyword.trim());
         }
+        BusAccess.filters("ht", sido, sigungu, nearStop, where, p);
         if (Boolean.TRUE.equals(bookable)) where.add("EXISTS (SELECT 1 FROM room_types rt2 WHERE rt2.hotel_id = ht.hotel_id)");
         String whereSql = where.isEmpty() ? "" : " WHERE " + String.join(" AND ", where);
         String distance = origin != null ? ", ST_Distance_Sphere(POINT(ht.longitude, ht.latitude), POINT(:slng, :slat)) / 1000 AS distance_km\n" : "";
         // 객실이 등록된(예약 가능한) 호텔을 먼저
         String orderBy = origin != null ? "distance_km, ht.hotel_id"
-                : "NOT EXISTS (SELECT 1 FROM room_types rt3 WHERE rt3.hotel_id = ht.hotel_id), ht.hotel_id";
+                : "NOT EXISTS (SELECT 1 FROM room_types rt3 WHERE rt3.hotel_id = ht.hotel_id), (ht.nearest_stop_m IS NULL), ht.nearest_stop_m, ht.hotel_id";
 
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM pet_hotels ht" + whereSql, p, Long.class);
         p.addValue("limit", paging.size()).addValue("offset", paging.offset());
-        List<Hotel> rows = jdbc.query(SELECT + distance + " FROM pet_hotels ht" + whereSql + " ORDER BY " + orderBy
+        List<Hotel> rows = jdbc.query(SELECT + distance + FROM + whereSql + " ORDER BY " + orderBy
                 + " LIMIT :limit OFFSET :offset", p, mapper(origin != null));
         return PageResponse.of(rows, paging, total == null ? 0 : total);
     }
 
     /** GET /pet-hotels/{id} — 호텔 정보 + 객실 목록(상태 없이) */
     public Hotel get(long hotelId) {
-        List<Hotel> rows = jdbc.query(SELECT + " FROM pet_hotels ht WHERE ht.hotel_id = :id", new MapSqlParameterSource("id", hotelId), mapper(false));
+        List<Hotel> rows = jdbc.query(SELECT + FROM + " WHERE ht.hotel_id = :id", new MapSqlParameterSource("id", hotelId), mapper(false));
         if (rows.isEmpty()) throw ApiException.notFound("HOTEL_NOT_FOUND", "존재하지 않는 펫 호텔이에요.");
         Hotel h = rows.get(0);
         return new Hotel(h.hotelId(), h.name(), h.address(), h.phone(), h.lat(), h.lng(), h.partner(), h.roomCount(), h.minPrice(),
-                h.nearestStation(), null, roomsOf(hotelId));
+                h.sido(), h.sigungu(), h.busAccess(), null, roomsOf(hotelId));
     }
 
     private static final RowMapper<Room> ROOM = (rs, i) -> new Room(rs.getLong("room_id"), rs.getLong("hotel_id"), rs.getString("room_name"),

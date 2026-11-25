@@ -26,6 +26,10 @@ import java.util.*;
  *   --places                            --kcisa 파일의 "동반 가능(Y)" 카페·식당·숙소·여행지·문화시설을 places 에도 저장
  *                                       (주변 탐색용. 약국·병원·용품·미용·위탁은 장소가 아니라 넣지 않아요)
  *     예) java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --kcisa kcisa.csv --places
+ *   --bus-stops 정류장.csv               국토교통부 전국 버스정류장 위치정보 → bus_stops (2026-11-25, 지하철 대신 버스)
+ *   --access                            places · hospitals · pet_hotels 의 지역(sido · sigungu)과 가장 가까운 정류장 ·
+ *                                       반경 500m 정류장 수를 다시 계산 (--bus-stops · 장소 · 병원 · 호텔을 넣으면 자동으로 해요)
+ *     예) java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --bus-stops bus_stops.csv
  */
 public class PublicDataLoader {
 
@@ -40,13 +44,16 @@ public class PublicDataLoader {
     // ------------------------------------------------------------------ main
     public static void main(String[] argv) throws Exception {
         Map<String, String> a = parseArgs(argv);
-        String hospitalCsv = a.get("hospital"), hotelCsv = a.get("hotel"), kcisaCsv = a.get("kcisa");
-        boolean withPlaces = a.containsKey("places");
-        if ((hospitalCsv == null && hotelCsv == null && !withPlaces) || (withPlaces && kcisaCsv == null)) {
+        String hospitalCsv = a.get("hospital"), hotelCsv = a.get("hotel"), kcisaCsv = a.get("kcisa"), stopsCsv = a.get("bus-stops");
+        boolean withPlaces = a.containsKey("places"), withAccess = a.containsKey("access");
+        if ((hospitalCsv == null && hotelCsv == null && !withPlaces && stopsCsv == null && !withAccess) || (withPlaces && kcisaCsv == null)) {
             System.err.println("사용법: java -cp <mysql-connector-j.jar> PublicDataLoader.java "
-                    + "--hospital <동물병원.csv> --hotel <동물위탁관리업.csv> [--kcisa <한국문화정보원.csv>] [--places] "
-                    + "[--dry-run | --sql-out out.sql]   (--places 는 --kcisa 가 필요해요)");
+                    + "[--hospital <동물병원.csv>] [--hotel <동물위탁관리업.csv>] [--kcisa <한국문화정보원.csv> [--places]] "
+                    + "[--bus-stops <버스정류장.csv>] [--access] [--dry-run | --sql-out out.sql]   (--places 는 --kcisa 가 필요해요)");
             System.exit(1);
+        }
+        if (a.containsKey("bus-routes")) {
+            System.out.println("※ --bus-routes(버스노선별 경유정류장)는 활용 가이드 PDF 의 요청 형식을 확인한 뒤 추가할 예정이에요. 이번에는 건너뛰어요.");
         }
 
         KcisaIndex kcisa = kcisaCsv == null || hospitalCsv == null ? null : KcisaIndex.load(Path.of(kcisaCsv));
@@ -57,23 +64,25 @@ public class PublicDataLoader {
                 : readLicense(Path.of(hospitalCsv), "병원", kcisa, KCISA_HOSPITAL_CATS);
         List<Biz> hotels = hotelCsv == null ? List.of()
                 : readLicense(Path.of(hotelCsv), "호텔", null, null);   // 호텔은 영업시간 저장 안 함
+        List<StopRow> stops = stopsCsv == null ? List.of() : readBusStops(Path.of(stopsCsv));
 
         if (a.containsKey("dry-run")) {
             printSamples("병원", hospitals);
             printSamples("호텔", hotels);
             if (withPlaces) printPlaceSummary(places);
+            if (!stops.isEmpty()) printStopSummary(stops, places);
             System.out.println("dry-run 이라 DB 에는 저장하지 않았어요.");
             return;
         }
         if (a.containsKey("sql-out")) {
-            writeSqlFile(Path.of(a.get("sql-out")), hospitals, hotels, places);
+            writeSqlFile(Path.of(a.get("sql-out")), hospitals, hotels, places, stops);
             return;
         }
 
         DbInfo db = askDbInfo(a);
         String url = "jdbc:mysql://" + db.host + ":" + db.port + "/" + db.name
                 + "?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul"
-                + "&rewriteBatchedStatements=true&connectTimeout=10000";
+                + "&rewriteBatchedStatements=true&connectTimeout=10000&allowPublicKeyRetrieval=true";
         try (Connection con = DriverManager.getConnection(url, db.user, db.password)) {
             System.out.println("✔ DB 연결 성공: " + db.host + ":" + db.port + "/" + db.name);
             if (!hospitals.isEmpty() || !hotels.isEmpty()) ensureColumns(con);
@@ -82,7 +91,16 @@ public class PublicDataLoader {
             if (withPlaces) {
                 ensurePlaceColumns(con);
                 upsertPlaces(con, places);
-                mapPlaceStations(con);
+            }
+            if (!stops.isEmpty()) {
+                ensureBusTables(con);
+                upsertBusStops(con, stops);
+            }
+            // 새로 넣은 장소 · 병원 · 호텔 · 정류장이 있으면 지역 · 가까운 정류장을 다시 계산
+            if (withAccess || withPlaces || !hospitals.isEmpty() || !hotels.isEmpty() || !stops.isEmpty()) {
+                ensureBusTables(con);
+                ensureAccessColumns(con);
+                updateAccess(con);
             }
             printDbCounts(con);
         } catch (SQLException e) {
@@ -483,6 +501,20 @@ public class PublicDataLoader {
                 rs.next();
                 System.out.printf("  pet_hotels: 전체 %,d행 (공공데이터 %,d)%n", rs.getLong(1), rs.getLong(2));
             }
+            if (tableExists(con, "bus_stops")) {
+                try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM bus_stops")) {
+                    rs.next();
+                    System.out.printf("  bus_stops: %,d곳%n", rs.getLong(1));
+                }
+            }
+            if (columnExists(con, "places", "nearest_stop_id")) {
+                for (String t : new String[]{"places", "hospitals", "pet_hotels"}) {
+                    try (ResultSet rs = st.executeQuery("SELECT COUNT(*), SUM(sido IS NOT NULL), SUM(nearest_stop_m <= 300) FROM " + t)) {
+                        rs.next();
+                        System.out.printf("  %s: 지역 있음 %,d / %,d · 정류장 300m 이내 %,d%n", t, rs.getLong(2), rs.getLong(1), rs.getLong(3));
+                    }
+                }
+            }
             if (columnExists(con, "places", "source_key")) {
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*), SUM(source_key IS NOT NULL) FROM places")) {
                     rs.next();
@@ -645,22 +677,6 @@ public class PublicDataLoader {
         }
     }
 
-    /** 공공데이터 장소 ↔ 반경 1km 지하철역 매핑 (지하철역 기준 탐색 · 장소 상세의 "가까운 지하철역"용) */
-    static final String MAP_PLACE_STATIONS = "INSERT IGNORE INTO place_stations (place_id, station_id, distance_km)\n"
-            + "SELECT p.place_id, s.station_id, ROUND(ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(s.longitude, s.latitude)) / 1000, 2)\n"
-            + "FROM places p JOIN stations s\n"
-            + "  ON s.latitude BETWEEN p.latitude - 0.01 AND p.latitude + 0.01\n"
-            + " AND s.longitude BETWEEN p.longitude - 0.013 AND p.longitude + 0.013\n"
-            + "WHERE p.source_key IS NOT NULL\n"
-            + "  AND ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(s.longitude, s.latitude)) <= 1000";
-
-    static void mapPlaceStations(Connection con) throws SQLException {
-        try (Statement st = con.createStatement()) {
-            int n = st.executeUpdate(MAP_PLACE_STATIONS);
-            System.out.printf("✔ place_stations 매핑 추가 %,d건 (반경 1km)%n", n);
-        }
-    }
-
     static void printPlaceSummary(List<PlaceRow> list) {
         Map<String, Integer> byCat = new TreeMap<>();
         for (PlaceRow p : list) byCat.merge(p.category, 1, Integer::sum);
@@ -684,18 +700,342 @@ public class PublicDataLoader {
             }
             w.write(PLACE_UPDATE + ";\n");
         }
-        w.write(MAP_PLACE_STATIONS + ";\n");
+    }
+
+    // ------------------------------------------------------------------ 버스 정류장 (--bus-stops) · 접근성 (--access)
+    static class StopRow {
+        String id, name, cityCode, cityName, collectedAt;
+        double lat, lng;
+    }
+
+    /** 국토교통부 전국 버스정류장 위치정보 CSV — 칼럼 이름이 조금 달라도 찾도록 후보를 여러 개 둬요 */
+    static List<StopRow> readBusStops(Path csv) throws IOException {
+        List<String[]> rows = Csv.read(csv);
+        Map<String, Integer> h = Csv.header(rows.remove(0));
+        int cId = colAny(h, true, "정류장번호", "정류장ID", "정류소ID", "정류소번호", "노드ID", "NODE_ID");
+        int cName = colAny(h, true, "정류장명", "정류소명", "노드명");
+        int cLat = colAny(h, true, "위도", "GPS_LATI", "Y좌표");
+        int cLng = colAny(h, true, "경도", "GPS_LONG", "X좌표");
+        int cCity = colAny(h, false, "도시코드", "CITY_CODE");
+        int cCityName = colAny(h, false, "도시명", "관리도시명");
+        int cDate = colAny(h, false, "정보수집일", "수집일");
+        List<StopRow> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        int bad = 0, dup = 0;
+        for (String[] r : rows) {
+            String id = get(r, cId);
+            double lat, lng;
+            try { lat = Double.parseDouble(get(r, cLat)); lng = Double.parseDouble(get(r, cLng)); }
+            catch (NumberFormatException ex) { bad++; continue; }
+            if (id.isEmpty() || !inKorea(lat, lng)) { bad++; continue; }
+            if (!seen.add(id)) { dup++; continue; }
+            StopRow sr = new StopRow();
+            sr.id = cut(id, 30);
+            sr.name = cut(get(r, cName), 100);
+            sr.lat = round7(lat);
+            sr.lng = round7(lng);
+            sr.cityCode = cCity < 0 ? null : cut(emptyToNull(get(r, cCity)), 10);
+            sr.cityName = cCityName < 0 ? null : cut(emptyToNull(get(r, cCityName)), 30);
+            sr.collectedAt = cDate < 0 ? null : isoDate(get(r, cDate));
+            out.add(sr);
+        }
+        System.out.printf("[국토교통부] %s: 버스 정류장 %,d곳 (좌표·ID 없음 %,d · 중복 ID %,d 제외)%n", csv.getFileName(), out.size(), bad, dup);
+        return out;
+    }
+
+    static String emptyToNull(String s) { return s == null || s.isEmpty() ? null : s; }
+
+    /** "2025-10-30" · "20251030" · "2025.10.30" → "2025-10-30", 못 읽으면 null */
+    static String isoDate(String s) {
+        String d = s.replaceAll("[^0-9]", "");
+        return d.length() >= 8 ? d.substring(0, 4) + "-" + d.substring(4, 6) + "-" + d.substring(6, 8) : null;
+    }
+
+    static void printStopSummary(List<StopRow> stops, List<PlaceRow> places) {
+        Map<String, Integer> byCity = new HashMap<>();
+        for (StopRow st : stops) byCity.merge(st.cityName == null ? "(도시명 없음)" : st.cityName, 1, Integer::sum);
+        System.out.println("---- 정류장 많은 도시 10곳: " + byCity.entrySet().stream()
+                .sorted((x, y) -> y.getValue() - x.getValue()).limit(10).map(e -> e.getKey() + " " + e.getValue()).toList());
+        System.out.println("---- 서울 데이터 포함 여부: " + byCity.keySet().stream().anyMatch(k -> k.contains("서울")));
+        StopIndex idx = new StopIndex(stops);
+        double[][] spots = {{34.7914, 126.3866}, {34.9113, 126.4377}};
+        String[] names = {"목포역", "국립목포대학교"};
+        for (int i = 0; i < spots.length; i++) {
+            StopIndex.Near n = idx.near(spots[i][0], spots[i][1]);
+            System.out.printf("---- %s 기준: 가장 가까운 정류장 %s (%s) %dm · 반경 500m 정류장 %d곳%n", names[i],
+                    n.stop == null ? "-" : n.stop.name, n.stop == null ? "-" : n.stop.id, n.meters == null ? -1 : n.meters, n.within500);
+        }
+        if (!places.isEmpty()) {
+            Map<String, Integer> grades = new TreeMap<>();
+            for (PlaceRow p : places) {
+                if (!(p.address.contains("목포시") || p.address.contains("무안군"))) continue;
+                StopIndex.Near n = idx.near(p.lat, p.lng);
+                String g = grade(n.meters, n.within500);
+                grades.merge(g, 1, Integer::sum);
+                System.out.printf("  [%s] %s → %s %sm (500m 안 %d곳)%n", g, p.name, n.stop == null ? "-" : n.stop.name,
+                        n.meters == null ? "-" : n.meters, n.within500);
+            }
+            System.out.println("---- 목포시 · 무안군 동반 장소 등급(노선 정보 없이 계산): " + grades);
+        }
+    }
+
+    /** 백엔드 BusAccess.grade 와 같은 규칙 (노선 수 없이: 반경 500m 정류장 4곳 이상이면 +1) */
+    static String grade(Integer m, int within500) {
+        if (m == null) return "D";
+        int pts = m <= 200 ? 3 : m <= 400 ? 2 : m <= 800 ? 1 : 0;
+        if (pts > 0 && within500 >= 4) pts++;
+        return pts >= 4 ? "A" : pts == 3 ? "B" : pts == 2 ? "C" : "D";
+    }
+
+    /** 0.01° 격자로 정류장을 나눠 두고 주변 칸만 봐요 (정류장 20만 곳 × 시설 1만 곳도 몇 초) */
+    static final class StopIndex {
+        static final double CELL = 0.01;          // 위도 약 1.1km
+        static final int SEARCH_M = 2_000;        // 2km 안에 정류장이 없으면 "가까운 정류장 없음"
+        final Map<Long, List<StopRow>> grid = new HashMap<>();
+
+        static final class Near {
+            StopRow stop;
+            Integer meters;
+            int within500;
+        }
+
+        StopIndex(List<StopRow> stops) {
+            for (StopRow st : stops) grid.computeIfAbsent(key(cell(st.lat), cell(st.lng)), k -> new ArrayList<>()).add(st);
+        }
+
+        static int cell(double v) { return (int) Math.floor(v / CELL); }
+        static long key(int a, int b) { return ((long) a << 32) ^ (b & 0xffffffffL); }
+
+        Near near(double lat, double lng) {
+            Near n = new Near();
+            int cl = cell(lat), cg = cell(lng);
+            double best = Double.MAX_VALUE;
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dx = -3; dx <= 3; dx++) {
+                    List<StopRow> list = grid.get(key(cl + dy, cg + dx));
+                    if (list == null) continue;
+                    for (StopRow st : list) {
+                        double d = Geo.distM(lat, lng, st.lat, st.lng);
+                        if (d <= 500) n.within500++;
+                        if (d < best) { best = d; n.stop = st; }
+                    }
+                }
+            }
+            if (n.stop != null && best <= SEARCH_M) n.meters = (int) Math.round(best);
+            else n.stop = null;
+            return n;
+        }
+    }
+
+    static boolean tableExists(Connection con, String table) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?")) {
+            ps.setString(1, table);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    static boolean constraintExists(Connection con, String table, String name) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?")) {
+            ps.setString(1, table); ps.setString(2, name);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    /** 버스 테이블이 없으면 만들어요 (db/patch_bus_transit.sql 과 같은 내용) */
+    static void ensureBusTables(Connection con) throws SQLException {
+        try (Statement st = con.createStatement()) {
+            st.execute("CREATE TABLE IF NOT EXISTS bus_stops ("
+                    + " stop_id VARCHAR(30) PRIMARY KEY COMMENT '정류장 ID (국토교통부 정류장번호)',"
+                    + " name VARCHAR(100) NOT NULL COMMENT '정류장명',"
+                    + " latitude DECIMAL(10,7) NOT NULL COMMENT '위도', longitude DECIMAL(10,7) NOT NULL COMMENT '경도',"
+                    + " city_code VARCHAR(10) COMMENT '도시코드', city_name VARCHAR(30) COMMENT '도시명', collected_at DATE COMMENT '정보 수집일',"
+                    + " INDEX idx_bus_stops_coordinates (latitude, longitude), INDEX idx_bus_stops_city (city_code)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='버스 정류장'");
+            st.execute("CREATE TABLE IF NOT EXISTS bus_routes ("
+                    + " route_id VARCHAR(30) PRIMARY KEY COMMENT '노선 ID', route_no VARCHAR(30) NOT NULL COMMENT '노선번호',"
+                    + " route_name VARCHAR(100) COMMENT '노선명', sido VARCHAR(20) COMMENT '시/도', sigungu VARCHAR(30) COMMENT '시/군/구',"
+                    + " INDEX idx_bus_routes_region (sido, sigungu), INDEX idx_bus_routes_no (route_no)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='버스 노선'");
+            st.execute("CREATE TABLE IF NOT EXISTS bus_route_stops ("
+                    + " route_id VARCHAR(30) NOT NULL COMMENT '노선 ID', stop_seq INT NOT NULL COMMENT '노선 안 정류장 순번',"
+                    + " stop_id VARCHAR(30) NOT NULL COMMENT '정류장 ID', PRIMARY KEY (route_id, stop_seq),"
+                    + " CONSTRAINT fk_bus_route_stops_route_id FOREIGN KEY (route_id) REFERENCES bus_routes(route_id) ON DELETE CASCADE ON UPDATE CASCADE,"
+                    + " CONSTRAINT fk_bus_route_stops_stop_id FOREIGN KEY (stop_id) REFERENCES bus_stops(stop_id) ON DELETE CASCADE ON UPDATE CASCADE,"
+                    + " INDEX idx_bus_route_stops_stop (stop_id)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='노선별 경유 정류장'");
+        }
+    }
+
+    static final String STOP_COLS = "stop_id, name, latitude, longitude, city_code, city_name, collected_at";
+    static final String STOP_UPDATE = "ON DUPLICATE KEY UPDATE name = VALUES(name), latitude = VALUES(latitude), longitude = VALUES(longitude), "
+            + "city_code = VALUES(city_code), city_name = VALUES(city_name), collected_at = VALUES(collected_at)";
+
+    static void upsertBusStops(Connection con, List<StopRow> list) throws SQLException {
+        String sql = "INSERT INTO bus_stops (" + STOP_COLS + ") VALUES (?, ?, ?, ?, ?, ?, ?) " + STOP_UPDATE;
+        boolean auto = con.getAutoCommit();
+        con.setAutoCommit(false);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            int n = 0;
+            for (StopRow st : list) {
+                ps.setString(1, st.id);
+                ps.setString(2, st.name);
+                ps.setBigDecimal(3, new java.math.BigDecimal(String.format(Locale.ROOT, "%.7f", st.lat)));
+                ps.setBigDecimal(4, new java.math.BigDecimal(String.format(Locale.ROOT, "%.7f", st.lng)));
+                ps.setString(5, st.cityCode);
+                ps.setString(6, st.cityName);
+                if (st.collectedAt == null) ps.setNull(7, Types.DATE); else ps.setDate(7, java.sql.Date.valueOf(st.collectedAt));
+                ps.addBatch();
+                if (++n % 2000 == 0) { ps.executeBatch(); System.out.printf("\r  bus_stops 저장 중 %,d / %,d", n, list.size()); }
+            }
+            ps.executeBatch();
+            con.commit();
+            System.out.printf("\r✔ bus_stops 저장 완료 %,d곳%n", n);
+        } catch (SQLException e) {
+            con.rollback();
+            System.err.println("\n✘ bus_stops 저장 실패 → 롤백했어요");
+            throw e;
+        } finally {
+            con.setAutoCommit(auto);
+        }
+    }
+
+    static void writeStopInserts(BufferedWriter w, List<StopRow> list) throws IOException {
+        for (int i = 0; i < list.size(); i += BATCH) {
+            w.write("INSERT INTO bus_stops (" + STOP_COLS + ") VALUES\n");
+            List<StopRow> part = list.subList(i, Math.min(i + BATCH, list.size()));
+            for (int j = 0; j < part.size(); j++) {
+                StopRow st = part.get(j);
+                w.write(String.format(Locale.ROOT, "(%s, %s, %.7f, %.7f, %s, %s, %s)", q(st.id), q(st.name), st.lat, st.lng,
+                        q(st.cityCode), q(st.cityName), q(st.collectedAt)) + (j == part.size() - 1 ? "\n" : ",\n"));
+            }
+            w.write(STOP_UPDATE + ";\n");
+        }
+    }
+
+    static final String[][] ACCESS_COLUMNS = {
+            {"sido", "VARCHAR(20) NULL COMMENT '시/도 (짧은 이름: 서울 · 전남)' AFTER address"},
+            {"sigungu", "VARCHAR(30) NULL COMMENT '시/군/구 (목포시 · 무안군)' AFTER sido"},
+            {"nearest_stop_id", "VARCHAR(30) NULL COMMENT '가장 가까운 버스 정류장' AFTER longitude"},
+            {"nearest_stop_m", "INT NULL COMMENT '가장 가까운 정류장까지 직선거리(m)' AFTER nearest_stop_id"},
+            {"stops_500m", "SMALLINT NULL COMMENT '반경 500m 안 정류장 수' AFTER nearest_stop_m"},
+    };
+
+    /** 지역 · 접근성 칼럼 · 인덱스 · FK 가 없으면 추가 (db/patch_bus_transit.sql 과 같은 내용, 여러 번 실행해도 안전) */
+    static void ensureAccessColumns(Connection con) throws SQLException {
+        try (Statement st = con.createStatement()) {
+            for (String t : new String[]{"places", "hospitals", "pet_hotels"}) {
+                for (String[] c : ACCESS_COLUMNS) {
+                    if (!columnExists(con, t, c[0])) {
+                        st.execute("ALTER TABLE " + t + " ADD COLUMN " + c[0] + " " + c[1]);
+                        System.out.println("  + 칼럼 추가: " + t + "." + c[0]);
+                    }
+                }
+                if (!indexExists(con, t, "idx_" + t + "_region")) st.execute("ALTER TABLE " + t + " ADD INDEX idx_" + t + "_region (sido, sigungu)");
+                if (t.equals("places") && !indexExists(con, t, "idx_places_stop_m")) st.execute("ALTER TABLE places ADD INDEX idx_places_stop_m (nearest_stop_m)");
+                if (!constraintExists(con, t, "fk_" + t + "_nearest_stop")) {
+                    st.execute("ALTER TABLE " + t + " ADD CONSTRAINT fk_" + t + "_nearest_stop FOREIGN KEY (nearest_stop_id) "
+                            + "REFERENCES bus_stops(stop_id) ON DELETE SET NULL ON UPDATE CASCADE");
+                }
+            }
+        }
+    }
+
+    /** 모든 장소 · 병원 · 호텔의 지역과 가장 가까운 정류장을 다시 계산해서 UPDATE (정류장이 없으면 지역만) */
+    static void updateAccess(Connection con) throws SQLException {
+        List<StopRow> stops = new ArrayList<>();
+        try (Statement st = con.createStatement(); ResultSet rs = st.executeQuery("SELECT stop_id, name, latitude, longitude FROM bus_stops")) {
+            while (rs.next()) {
+                StopRow s = new StopRow();
+                s.id = rs.getString(1); s.name = rs.getString(2);
+                s.lat = rs.getBigDecimal(3).doubleValue(); s.lng = rs.getBigDecimal(4).doubleValue();
+                stops.add(s);
+            }
+        }
+        StopIndex idx = stops.isEmpty() ? null : new StopIndex(stops);
+        if (idx == null) System.out.println("※ bus_stops 가 비어 있어 지역만 채워요. --bus-stops 로 정류장을 넣으면 가까운 정류장도 계산해요.");
+        String[][] targets = {{"places", "place_id"}, {"hospitals", "hospital_id"}, {"pet_hotels", "hotel_id"}};
+        boolean auto = con.getAutoCommit();
+        con.setAutoCommit(false);
+        try {
+            for (String[] t : targets) {
+                List<Object[]> rows = new ArrayList<>();
+                try (Statement st = con.createStatement();
+                     ResultSet rs = st.executeQuery("SELECT " + t[1] + ", address, latitude, longitude FROM " + t[0])) {
+                    while (rs.next()) rows.add(new Object[]{rs.getLong(1), rs.getString(2), rs.getBigDecimal(3).doubleValue(), rs.getBigDecimal(4).doubleValue()});
+                }
+                String sql = idx == null
+                        ? "UPDATE " + t[0] + " SET sido = ?, sigungu = ? WHERE " + t[1] + " = ?"
+                        : "UPDATE " + t[0] + " SET sido = ?, sigungu = ?, nearest_stop_id = ?, nearest_stop_m = ?, stops_500m = ? WHERE " + t[1] + " = ?";
+                int n = 0, near300 = 0;
+                try (PreparedStatement ps = con.prepareStatement(sql)) {
+                    for (Object[] r : rows) {
+                        String[] reg = region((String) r[1]);
+                        ps.setString(1, reg[0]);
+                        ps.setString(2, reg[1]);
+                        if (idx == null) {
+                            ps.setLong(3, (Long) r[0]);
+                        } else {
+                            StopIndex.Near near = idx.near((Double) r[2], (Double) r[3]);
+                            ps.setString(3, near.stop == null ? null : near.stop.id);
+                            if (near.meters == null) ps.setNull(4, Types.INTEGER); else ps.setInt(4, near.meters);
+                            ps.setInt(5, near.within500);
+                            ps.setLong(6, (Long) r[0]);
+                            if (near.meters != null && near.meters <= 300) near300++;
+                        }
+                        ps.addBatch();
+                        if (++n % BATCH == 0) ps.executeBatch();
+                    }
+                    ps.executeBatch();
+                }
+                con.commit();
+                System.out.printf("✔ %s 지역%s 계산 %,d곳%s%n", t[0], idx == null ? "" : " · 가까운 정류장", n,
+                        idx == null ? "" : String.format(" (정류장 300m 이내 %,d곳)", near300));
+            }
+        } catch (SQLException e) {
+            con.rollback();
+            System.err.println("\n✘ 지역 · 정류장 계산 저장 실패 → 롤백했어요");
+            throw e;
+        } finally {
+            con.setAutoCommit(auto);
+        }
+    }
+
+    /** 주소 → {시/도 짧은 이름, 시/군/구} — 백엔드 Region.parse 와 같은 규칙 */
+    static final Map<String, String> SIDO_ALIAS = new HashMap<>();
+    static {
+        String[][] a = {
+                {"서울", "서울특별시", "서울시", "서울"}, {"부산", "부산광역시", "부산시", "부산"}, {"대구", "대구광역시", "대구시", "대구"},
+                {"인천", "인천광역시", "인천시", "인천"}, {"광주", "광주광역시", "광주"}, {"대전", "대전광역시", "대전시", "대전"},
+                {"울산", "울산광역시", "울산시", "울산"}, {"세종", "세종특별자치시", "세종시", "세종"}, {"경기", "경기도", "경기"},
+                {"강원", "강원특별자치도", "강원도", "강원"}, {"충북", "충청북도", "충북"}, {"충남", "충청남도", "충남"},
+                {"전북", "전북특별자치도", "전라북도", "전북"}, {"전남", "전라남도", "전남"}, {"경북", "경상북도", "경북"},
+                {"경남", "경상남도", "경남"}, {"제주", "제주특별자치도", "제주도", "제주"}};
+        for (String[] row : a) for (int i = 1; i < row.length; i++) SIDO_ALIAS.put(row[i], row[0]);
+    }
+
+    static String[] region(String address) {
+        if (address == null) return new String[]{null, null};
+        String[] t = address.trim().split("\\s+");
+        String sido = t.length > 0 ? SIDO_ALIAS.get(t[0]) : null;
+        if (sido == null) return new String[]{null, null};
+        if (sido.equals("세종")) return new String[]{sido, "세종시"};
+        String second = t.length > 1 ? t[1] : "";
+        return new String[]{sido, second.endsWith("시") || second.endsWith("군") || second.endsWith("구") ? second : null};
     }
 
     // ------------------------------------------------------------------ --sql-out
-    static void writeSqlFile(Path out, List<Biz> hospitals, List<Biz> hotels, List<PlaceRow> places) throws IOException {
+    static void writeSqlFile(Path out, List<Biz> hospitals, List<Biz> hotels, List<PlaceRow> places, List<StopRow> stops) throws IOException {
         try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
             w.write("-- 펫플래닛 공공데이터 (PublicDataLoader --sql-out 으로 생성)\n");
-            w.write("-- 먼저 db/patch_be2_public_data.sql 을 실행해 license_no · places.source_key 칼럼을 추가해 주세요.\n");
+            w.write("-- 먼저 db/patch_be2_public_data.sql · db/patch_bus_transit.sql 을 실행해 칼럼 · 버스 테이블을 추가해 주세요.\n");
+            w.write("-- ※ 가까운 정류장 계산(--access)은 SQL 파일로 만들 수 없어요. 적재 후 적재기를 --access 로 한 번 실행하세요.\n");
             w.write("SET NAMES utf8mb4;\nSTART TRANSACTION;\n");
             writeInserts(w, hospitals, true);
             writeInserts(w, hotels, false);
             if (!places.isEmpty()) writePlaceInserts(w, places);
+            if (!stops.isEmpty()) writeStopInserts(w, stops);
             w.write("COMMIT;\n");
         }
         System.out.println("✔ SQL 파일 저장: " + out.toAbsolutePath());
@@ -784,6 +1124,13 @@ public class PublicDataLoader {
         Integer i = h.get(name);
         if (i == null) throw new IllegalArgumentException("CSV 에 '" + name + "' 칼럼이 없어요. 맞는 파일인지 확인해 주세요. 헤더: " + h.keySet());
         return i;
+    }
+
+    /** 후보 이름 중 처음 찾은 칼럼. required 인데 없으면 헤더를 보여 주며 멈춰요 */
+    static int colAny(Map<String, Integer> h, boolean required, String... names) {
+        for (String n : names) { Integer i = h.get(n); if (i != null) return i; }
+        if (required) throw new IllegalArgumentException("CSV 에 " + Arrays.toString(names) + " 중 하나의 칼럼이 필요해요. 헤더: " + h.keySet());
+        return -1;
     }
 
     static String get(String[] r, int i) { return i < r.length ? r[i].trim() : ""; }

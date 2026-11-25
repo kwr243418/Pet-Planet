@@ -58,9 +58,9 @@ export const PRODUCTS = [
   { productId: 7, categoryId: 3, name: '배변패드 100매', price: 15000, stockQuantity: 60, imageUrl: null, description: '흡수력이 좋은 두꺼운 패드예요.' },
   { productId: 8, categoryId: 3, name: '저자극 샴푸 300ml', price: 12000, stockQuantity: 18, imageUrl: null, description: '피부가 예민한 아이도 쓸 수 있는 약산성 샴푸예요.' },
   { productId: 9, categoryId: 3, name: '귀 세정제 120ml', price: 9800, stockQuantity: 25, imageUrl: null, description: '산책 후 귀 청소용.' },
-  { productId: 10, categoryId: 4, name: '지하철용 소프트 이동장', price: 49000, stockQuantity: 12, imageUrl: null, description: '대중교통 규정에 맞춘 크기의 가벼운 이동장이에요.' },
+  { productId: 10, categoryId: 4, name: '대중교통용 소프트 이동장', price: 49000, stockQuantity: 12, imageUrl: null, description: '대중교통 규정에 맞춘 크기의 가벼운 이동장이에요.' },
   { productId: 11, categoryId: 4, name: '산책용 하네스 (소형)', price: 18000, stockQuantity: 5, imageUrl: null, description: '가슴을 감싸는 H형 하네스.' },
-  { productId: 12, categoryId: 4, name: '접이식 휴대 물병', price: 11000, stockQuantity: 35, imageUrl: null, description: '산책·지하철 이동 중에 물을 줄 수 있는 휴대 물병이에요.' },
+  { productId: 12, categoryId: 4, name: '접이식 휴대 물병', price: 11000, stockQuantity: 35, imageUrl: null, description: '산책·버스 이동 중에 물을 줄 수 있는 휴대 물병이에요.' },
 ];
 
 export const SHIPPING_FEE = 3000;
@@ -111,7 +111,7 @@ export function commerceSeed(now = new Date()) {
     review(5004, 2, 'HOSPITAL', 2, 3, 4, '예방접종 받으러 갔는데 친절했어요. 주차는 조금 불편해요.', 11),
     review(5005, 2, 'PRODUCT', 1, 3, 5, '알러지 있는 두부도 잘 먹어요. 변 상태도 좋아졌어요.', 20),
     review(5006, 2, 'PRODUCT', 4, 3, 4, '산책 보상 간식으로 딱이에요. 조금 딱딱해서 잘라서 줘요.', 20),
-    review(5007, 3, 'PRODUCT', 10, 4, 5, '지하철 탈 때 들고 다니기 가볍고 튼튼해요. 소형견용으로 추천해요.', 15),
+    review(5007, 3, 'PRODUCT', 10, 4, 5, '버스 탈 때 들고 다니기 가볍고 튼튼해요. 소형견용으로 추천해요.', 15),
     review(5008, 3, 'PRODUCT', 6, 4, 4, '달지 않고 쫀득해서 잘 먹어요.', 15),
   ];
   return { hospitalReservations, hotelReservations, orders, reviews };

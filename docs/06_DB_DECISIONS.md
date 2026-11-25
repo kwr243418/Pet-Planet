@@ -1,5 +1,7 @@
 # 06. DB 합의사항
 
+> ⚠️ **2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요.** 이 문서의 지하철역 · 호선 · `stations` · `place_stations` 내용은 [09_BUS_TRANSIT](09_BUS_TRANSIT.md)이 대신해요.
+
 현재 스키마(`db/schema_full.sql`, BE1 작성)와 팀장 목업 화면 사이에 안 맞는 곳을 모았어요.
 **[결정] 칸을 채우고**, 채택한 항목은 `db/patch_v2_proposed.sql` 의 같은 번호 블록을 실행(또는 `schema_full.sql` 에 반영)하면 돼요.
 출처: 팀장 "화면별 필수 요소 정리 › DB 연동 시 확인할 점" + FE1이 화면 만들며 찾은 것.

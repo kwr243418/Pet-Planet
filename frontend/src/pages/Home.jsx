@@ -1,18 +1,19 @@
 import { useMemo } from 'react';
 import { usePageTitle } from '../hooks/usePage.js';
 import { Link } from 'react-router-dom';
-import { placeApi, stationApi } from '../api/index.js';
+import { placeApi } from '../api/index.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { IMG, SubwayPoodle, TinyDog } from '../components/illust/index.jsx';
 import { ErrorState, Skeleton } from '../components/common/ui.jsx';
-import { StationPlaceCard } from '../components/place/PlaceCards.jsx';
+import { NearPlaceCard } from '../components/place/PlaceCards.jsx';
 import { GENDER_LABEL } from '../utils/format.js';
-import { readLastStation } from './Explore.jsx';
-import { DEFAULT_LINE, stationBase, stationLabel } from '../utils/subway.js';
+import { PRESET_ORIGINS, readOrigin } from '../utils/origin.js';
+import { readRegion } from './Explore.jsx';
+import { regionLabel } from '../utils/region.js';
 
 const LINE_TILES = [
-  { key: 'E', name: '탐색선', title: '내 주변\n동반 장소 탐색', desc: '내 위치 · 지하철역 기준 장소 · 병원 · 호텔', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
+  { key: 'E', name: '탐색선', title: '내 주변\n동반 장소 탐색', desc: '내 위치 · 지역별 장소 · 병원 · 호텔과 버스 정류장', cta: '탐색선 타기', to: '/explore', img: IMG.engraveSpaniel },
   { key: 'R', name: '예약선', title: '동물병원 ·\n펫 호텔 예약', desc: '체중에 맞는 객실만 골라 보여 줍니다', cta: '예약선 타기', to: '/reservations/hospital', img: IMG.engraveTerrier },
   { key: 'S', name: '쇼핑선', title: '사료 · 간식 ·\n외출 용품 쇼핑', desc: '장바구니부터 배송 조회까지 한 번에', cta: '쇼핑선 타기', to: '/shop', img: IMG.engravePointerStanding },
   { key: 'M', name: '마이선', title: '예약 · 주문 ·\n리뷰 한곳에서', desc: '장소 후기와 상품 후기를 하나로', cta: '마이선 타기', to: '/mypage', img: IMG.engraveRetriever },
@@ -29,18 +30,21 @@ const SAMPLE_PET = { name: '보리', breed: '진돗개', gender: 'MALE', weight:
 export default function Home() {
   usePageTitle('홈');
   const { user, primaryPet } = useAuth();
-  const last = readLastStation();
-  // "이번 역": 마지막으로 본 역, 없으면 홍대입구(2호선)
-  const station = useAsync(async () => {
-    if (last?.stationId) return stationApi.get(last.stationId).catch(() => null);
-    const line2 = await stationApi.byLine(DEFAULT_LINE);
-    return line2.find((s) => stationBase(s.stationName) === '홍대입구') ?? line2[0];
+  // "다음 정류장": 마지막 출발점(없으면 목포역) 반경 5km 장소, 없으면 지난번 지역 · 전체 인기 장소
+  const origin = readOrigin() ?? PRESET_ORIGINS.find((p) => p.key === 'mokpo-st');
+  const region = readRegion();
+  const near = useAsync(async () => {
+    const around = await placeApi.search({ lat: origin.lat, lng: origin.lng, radiusKm: 5, sort: 'distance', size: 3 });
+    if (around.content.length) return { title: `${origin.label} 주변`, link: `/explore?mode=me&lat=${origin.lat}&lng=${origin.lng}&from=${encodeURIComponent(origin.label)}&r=5`, items: around.content };
+    if (region) {
+      const inRegion = await placeApi.search({ sido: region.sido, sigungu: region.sigungu ?? undefined, sort: 'reviews', size: 3 });
+      if (inRegion.content.length) return { title: regionLabel(region), link: `/explore?mode=region&sido=${encodeURIComponent(region.sido)}${region.sigungu ? `&sigungu=${encodeURIComponent(region.sigungu)}` : ''}`, items: inRegion.content };
+    }
+    const popular = await placeApi.search({ sort: 'reviews', size: 3 });
+    return { title: '후기가 많은 동반 장소', link: '/explore?mode=region', items: popular.content };
   }, []);
-  const st = station.data;
-  const near = useAsync(() => placeApi.search({ stationId: st.stationId, radiusKm: 1, sort: 'distance', size: 3 }), [st?.stationId], { enabled: !!st });
 
   const pet = primaryPet ?? SAMPLE_PET;
-  const exploreLink = st ? `/explore?line=${encodeURIComponent(st.line)}&stationId=${st.stationId}` : '/explore';
 
   return (
     <div className="home">
@@ -48,21 +52,21 @@ export default function Home() {
       <section className="hub-hero">
         <div className="container hub-hero__inner">
           <div className="hub-hero__text">
-            <p className="eyebrow eyebrow--night">이번 역 · {st ? stationLabel(st.stationName) : '…'}</p>
+            <p className="eyebrow eyebrow--night">다음 정류장 · {near.data?.title ?? '…'}</p>
             <h1 className="hub-hero__title">
               어디서든,
               <br />
               반려동물과 함께 가는 길.
             </h1>
             <p className="hub-hero__tag">
-              내 위치에서, 가까운 역에서 <span>같이 갈 수 있는 곳</span>을 찾습니다
+              내 위치에서, 우리 지역에서 <span>버스로 같이 갈 수 있는 곳</span>을 찾습니다
             </p>
             <div className="hub-hero__ctas">
               <Link to="/explore?mode=me" className="btn btn--gold btn--md">
                 내 위치로 찾기
               </Link>
-              <Link to={exploreLink} className="btn btn--night btn--md">
-                우리 역 주변 찾기
+              <Link to="/explore?mode=region" className="btn btn--night btn--md">
+                지역으로 찾기
               </Link>
             </div>
           </div>
@@ -96,16 +100,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 이번 역 주변 */}
+      {/* 다음 정류장 (마지막 출발점 주변) */}
       <section className="section">
         <div className="container">
           <div className="section-head section-head--rule">
             <h2 className="section-title">
-              이번 역은
+              다음 정류장은
               <br />
-              {st ? `${stationLabel(st.stationName)}입니다` : '…'}
+              {near.data ? `${near.data.title}입니다` : '…'}
             </h2>
-            <Link to={exploreLink} className="btn btn--outline btn--sm">
+            <Link to={near.data?.link ?? '/explore'} className="btn btn--outline btn--sm">
               주변 장소 전체 보기 →
             </Link>
           </div>
@@ -115,7 +119,7 @@ export default function Home() {
             <div className="near-grid">
               {!near.data
                 ? [0, 1, 2].map((i) => <Skeleton key={i} h={240} r={0} />)
-                : near.data.content.map((p) => <StationPlaceCard key={p.placeId} place={p} />)}
+                : near.data.items.map((p) => <NearPlaceCard key={p.placeId} place={p} />)}
             </div>
           )}
         </div>

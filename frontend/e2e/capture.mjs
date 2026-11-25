@@ -17,13 +17,14 @@ const SHOTS = [
   // [파일 이름, 경로, 로그인 필요, 찍기 전 동작]
   ['s00-intro', '/', false],
   ['s01-home', '/home', false],
-  ['s02-explore', '/explore?line=2%ED%98%B8%EC%84%A0', false],
-  ['s02-explore-filter', '/explore?line=2%ED%98%B8%EC%84%A0&cat=1&sizes=SMALL', false],
+  ['s02-explore', '/explore?mode=region&sido=%EC%84%9C%EC%9A%B8&sigungu=%EB%A7%88%ED%8F%AC%EA%B5%AC', false],
+  ['s02-explore-me', '/explore?mode=me&lat=37.5572&lng=126.9245&from=%ED%99%8D%EB%8C%80%EC%9E%85%EA%B5%AC&r=1', false],
+  ['s02-explore-filter', '/explore?mode=region&sido=%EC%84%9C%EC%9A%B8&cat=1&sizes=SMALL&near=1', false],
   ['s03-place-detail', '/places/1', true],
   ['s03-review-modal', '/places/3', true, async (p) => {
     await p.getByRole('button', { name: '리뷰 쓰기' }).click();
     await p.getByRole('radio', { name: '5점' }).click();
-    await p.locator('textarea').fill('역에서 가까워서 지하철 타고 오기 편해요. 실내 좌석도 넓어요!');
+    await p.locator('textarea').fill('정류장에서 가까워서 버스 타고 오기 편해요. 실내 좌석도 넓어요!');
   }],
   ['s08-mypage', '/mypage', true],
   ['s09-signup', '/signup', false],
@@ -41,7 +42,7 @@ for (const [device, viewport, scale] of [
   await page.goto(BASE);
   await page.evaluate(() => {
     localStorage.clear();
-    localStorage.setItem('pp-last-station', JSON.stringify({ stationName: '홍대입구', line: '2호선' }));
+    localStorage.setItem('pp-region', JSON.stringify({ sido: '서울', sigungu: '마포구' }));
   });
   let loggedIn = false;
   for (const [name, path, needLogin, before] of SHOTS) {

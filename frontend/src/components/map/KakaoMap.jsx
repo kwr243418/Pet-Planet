@@ -40,10 +40,10 @@ export function loadKakaoMaps(appKey, timeoutMs = 7000) {
 function pinElement(m, onClick) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = m.kind === 'station' ? 'kmap-station' : 'kmap-pin';
+  el.className = m.kind === 'origin' ? 'kmap-station' : 'kmap-pin';
   el.dataset.id = m.id;
   el.setAttribute('aria-label', m.label);
-  if (m.kind === 'station') {
+  if (m.kind === 'origin') {
     el.innerHTML = `<span class="kmap-station__dot"></span><span class="kmap-station__name">${escapeHtml(m.label)}</span>`;
   } else {
     el.innerHTML = `<span class="kmap-pin__num">${m.num ?? ''}</span><span class="kmap-pin__name">${escapeHtml(m.label)}</span>`;
@@ -55,8 +55,8 @@ function pinElement(m, onClick) {
 const escapeHtml = (s = '') => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 /**
- * 카카오맵 (Day 6) — 지하철역/장소 마커 + 반경 원
- * markers: [{ id, lat, lng, kind: 'place'|'station', label, num }]
+ * 카카오맵 (Day 6) — 출발점/장소 마커 + 반경 원
+ * markers: [{ id, lat, lng, kind: 'place'|'origin', label, num }]
  */
 export default function KakaoMap({ appKey, center, markers, radiusKm, selectedId, onMarkerClick, onFail, height, label }) {
   const el = useRef(null);
@@ -117,7 +117,7 @@ export default function KakaoMap({ appKey, center, markers, radiusKm, selectedId
         position: pos,
         content: pinElement(m, (id) => clickRef.current?.(id)),
         yAnchor: 0.5,
-        zIndex: m.kind === 'station' ? 3 : 2,
+        zIndex: m.kind === 'origin' ? 3 : 2,
         clickable: true,
       });
       overlay.setMap(map);

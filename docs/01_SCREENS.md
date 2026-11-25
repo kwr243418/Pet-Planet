@@ -1,12 +1,14 @@
 # 01. 화면 담당표
 
+> ⚠️ **2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요.** 이 문서의 지하철역 · 호선 · `stations` · `place_stations` 내용은 [09_BUS_TRANSIT](09_BUS_TRANSIT.md)이 대신해요.
+
 팀장 목업 10개 화면(S01–S09, S04-0) + 목업에는 없지만 필요한 보조 화면.
 상태: ✅ 완료(목 서버 + 백엔드 API 구현, 11/24) · 🧱 뼈대만 · ⬜ 미착수
 
 | ID | 화면 | 경로 | 노선 | FE | BE | 주요 테이블 | 주요 API (docs/04·05) | 상태 |
 |---|---|---|---|---|---|---|---|---|
-| S01 | 메인 홈 | `/` | – | FE1 | BE1 | stations, places, place_stations, pets | `GET /stations?line=`, `GET /places` | ✅ |
-| S02 | 역세권 장소 탐색 | `/explore` | E | FE1 | BE1 | stations, places, place_categories, place_stations, place_bookmarks | `GET /stations?line=`, `GET /places`, `POST/DELETE /places/{id}/bookmark` | ✅ |
+| S01 | 메인 홈 | `/home` | – | FE1 | BE1 | places, bus_stops, pets | `GET /places` | ✅ |
+| S02 | 주변 탐색 (내 근처 · 지역별) | `/explore` | E | FE1 | BE1 (+BE2) | places, place_categories, place_bookmarks, bus_stops, hospitals, pet_hotels | `GET /regions`, `GET /places`, `GET /hospitals`, `GET /pet-hotels`, `POST/DELETE /places/{id}/bookmark` | ✅ |
 | S03 | 장소 상세 | `/places/:placeId` | E | FE1 | BE1·BE2 | places, place_stations, place_bookmarks, reviews(PLACE) | `GET /places/{id}`, `GET/POST/PUT/DELETE /reviews` | ✅ |
 | S04-0 | 동물병원 상세 · 리뷰 | `/hospitals/:hospitalId` | R | FE2 | BE2 | hospitals, pets, hospital_reservations, reviews(HOSPITAL) | `GET /hospitals/{id}`, `GET /reviews?targetType=HOSPITAL` | ✅ API 연결 |
 | S04 | 동물병원 진료 예약 | `/reservations/hospital` | R | FE2 | BE2 | hospitals, pets, hospital_reservations | `GET /hospitals/{id}/available-times`, `POST /hospital-reservations` | ✅ API 연결 |

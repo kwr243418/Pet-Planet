@@ -1,5 +1,7 @@
 # 05. API 명세 — 예약 · 커머스 (FE2 ↔ BE2) · 구현 완료 (11/24)
 
+> ⚠️ **2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요.** 이 문서의 지하철역 · 호선 · `stations` · `place_stations` 내용은 [09_BUS_TRANSIT](09_BUS_TRANSIT.md)이 대신해요.
+
 > ✅ 11/24 백엔드(`backend/`)에 구현했어요. 구현하면서 더한 것은 맨 아래 §8 에 있어요.
 > (처음 초안 설명) **초안**이에요. 팀장 목업 필수 요소(S04-0·S04·S05·S06·S07·S08)와 현재 DB(`db/schema_full.sql`)를 기준으로 FE1이 뼈대를 잡았어요.
 > FE2·BE2가 확정하면서 자유롭게 고쳐 주세요. 공통 규칙은 [03_API_CONVENTIONS](03_API_CONVENTIONS.md).
@@ -26,7 +28,8 @@
   "operatingHours": "평일 09:00-19:00 / 토 10:00-15:00 / 일 휴진",
   "intro": "…", "departments": ["내과", "외과", "피부과"], "lunchTime": "13:00-14:00",   // 🆕 소개 탭
   "avgRating": 4.8, "reviewCount": 15,
-  "nearestStation": { "stationId": 10, "stationName": "홍대입구", "lines": ["2호선"], "distanceKm": 0.4 }
+  "sido": "서울", "sigungu": "마포구",
+  "busAccess": { "stopId": "…", "stopName": "홍대입구", "distanceM": 120, "walkMin": 2, "stops500m": 6, "routeCount": 7, "grade": "A", "gradeLabel": "버스 정류장이 아주 가까워요" }   // 11/25 nearestStation 대신 (docs/09)
 }
 // GET /hospitals/1/available-times?date=2026-11-20
 { "date": "2026-11-20", "slots": [ { "time": "14:00", "available": true }, { "time": "14:30", "available": false } ] }

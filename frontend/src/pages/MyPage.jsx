@@ -12,8 +12,7 @@ import { useToast } from '../components/common/Toast.jsx';
 import { HeartIcon } from '../components/place/BookmarkButton.jsx';
 import { ReviewModal } from '../components/place/Reviews.jsx';
 import { categoryMeta } from '../utils/categories.js';
-import { GENDER_LABEL, ROLE_LABEL, formatKm } from '../utils/format.js';
-import { lineName, stationBase } from '../utils/subway.js';
+import { GENDER_LABEL, ROLE_LABEL } from '../utils/format.js';
 import { validateName } from '../utils/validators.js';
 import MyReservations from './fe2/MyReservations.jsx';
 import MyOrders from './fe2/MyOrders.jsx';
@@ -47,7 +46,7 @@ export default function MyPage() {
           <>
             MY
             <br />
-            STATION
+            STOP
           </>
         }
         compact
@@ -256,10 +255,10 @@ function MyBookmarks({ onChange }) {
       </div>
       {list.error && <ErrorState error={list.error} onRetry={list.reload} />}
       {list.loading && !list.data && <Skeleton h={90} r={20} />}
-      {list.data?.length === 0 && <EmptyState compact title="찜한 장소가 없어요" desc="역 주변 장소를 둘러보고 하트를 눌러 보세요." />}
+      {list.data?.length === 0 && <EmptyState compact title="찜한 장소가 없어요" desc="내 근처나 지역별로 장소를 둘러보고 하트를 눌러 보세요." />}
       <ul className="mini-list">
         {list.data?.map((p) => {
-          const st = p.nearestStation;
+          const a = p.busAccess;
           const meta = categoryMeta(p.categoryId);
           return (
             <li key={p.placeId} className="mini-row mini-row--place">
@@ -268,7 +267,8 @@ function MyBookmarks({ onChange }) {
                 <b>{p.name}</b>
                 <small className="muted">
                   {p.categoryName}
-                  {st && ` · ${lineName(st.lines[0])} ${stationBase(st.stationName)} ${formatKm(st.distanceKm)}`}
+                  {p.sigungu && ` · ${p.sigungu}`}
+                  {a?.stopId && ` · ${a.stopName} 정류장 도보 ${a.walkMin}분`}
                 </small>
               </Link>
               <button className="heart-btn is-on" aria-label={`${p.name} 찜 해제`} onClick={() => remove(p)}>

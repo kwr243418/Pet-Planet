@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { placeApi, reviewApi } from '../api/index.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { usePageTitle } from '../hooks/usePage.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LetterBadge, NowStation } from '../components/layout/Site.jsx';
-import { Button, ConfirmDialog, EmptyState, ErrorState, LineChip, Skeleton, Stars, Tag } from '../components/common/ui.jsx';
+import { Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, Stars, Tag } from '../components/common/ui.jsx';
 import { useToast } from '../components/common/Toast.jsx';
 import { HeartIcon, useBookmarkToggle } from '../components/place/BookmarkButton.jsx';
 import { ReviewCard, ReviewModal } from '../components/place/Reviews.jsx';
 import MapView from '../components/map/MapView.jsx';
 import RouteGuide from '../components/nearby/RouteGuide.jsx';
+import TransitPanel from '../components/transit/TransitPanel.jsx';
+import KakaoReviewLink from '../components/transit/KakaoReviewLink.jsx';
 import { readOrigin } from '../utils/origin.js';
 import { categoryMeta } from '../utils/categories.js';
-import { formatKm, formatRating, INDOOR_LABEL, MAX_SIZE_LONG } from '../utils/format.js';
-import { lineName, stationBase, stationLabel } from '../utils/subway.js';
+import { formatRating, INDOOR_LABEL, MAX_SIZE_LONG } from '../utils/format.js';
 import { EXPLORE_STEPS } from './Explore.jsx';
 
 /** S03 장소 상세 */
@@ -75,42 +76,32 @@ function kakaoRouteUrl(p) {
 
 function Detail({ place, setPlace }) {
   const meta = categoryMeta(place.categoryId);
-  const [params] = useSearchParams();
   const [photoBroken, setPhotoBroken] = useState(false);
-  // 경로: 탐색 화면에서 들어오면 그 호선·역, 아니면 가장 가까운 역
-  const near = place.nearbyStations;
-  const fromStation = near.find((s) => String(s.stationId) === params.get('stationId')) ?? near.find((s) => s.lines.includes(params.get('line'))) ?? near[0];
-  const crumbLine = params.get('line') && fromStation?.lines.includes(params.get('line')) ? params.get('line') : fromStation?.lines[0];
-  const routeOrigin =
-    params.get('from') === 'me'
-      ? readOrigin()
-      : params.get('stationId') && fromStation
-        ? { label: stationLabel(fromStation.stationName), lat: fromStation.lat, lng: fromStation.lng }
-        : readOrigin();
+  // 가는 방법의 출발점: 주변 탐색에서 고른 내 위치(마지막 출발점)
+  const routeOrigin = readOrigin();
+  const regionQuery = place.sido ? `mode=region&sido=${encodeURIComponent(place.sido)}${place.sigungu ? `&sigungu=${encodeURIComponent(place.sigungu)}` : ''}` : null;
 
   const { on, pending, toggle } = useBookmarkToggle(place.placeId, place.bookmarked, (_, v) =>
     setPlace((p) => ({ ...p, bookmarked: v, bookmarkCount: p.bookmarkCount + (v ? 1 : -1) })),
   );
-  const markers = useMemo(
-    () => [
-      { id: place.placeId, num: 1, lat: place.lat, lng: place.lng, kind: 'place', label: place.name },
-      ...near.slice(0, 3).map((s) => ({ id: `st-${s.stationId}`, lat: s.lat, lng: s.lng, kind: 'station', label: stationBase(s.stationName) })),
-    ],
-    [place, near],
-  );
+  const markers = useMemo(() => [{ id: place.placeId, num: 1, lat: place.lat, lng: place.lng, kind: 'place', label: place.name }], [place]);
 
   return (
     <>
       <section className="detail-hero">
         <div className="container detail-hero__inner">
           <div className="detail-hero__text">
-            {fromStation && (
+            {regionQuery && (
               <nav className="crumb" aria-label="경로">
-                <Link to={`/explore?line=${encodeURIComponent(crumbLine)}`}>{lineName(crumbLine)}</Link>
+                <Link to={`/explore?mode=region&sido=${encodeURIComponent(place.sido)}`}>{place.sido}</Link>
+                {place.sigungu && (
+                  <>
+                    <span>›</span>
+                    <Link to={`/explore?${regionQuery}`}>{place.sigungu}</Link>
+                  </>
+                )}
                 <span>›</span>
-                <Link to={`/explore?line=${encodeURIComponent(crumbLine)}&stationId=${fromStation.stationId}`}>{stationBase(fromStation.stationName)}</Link>
-                <span>›</span>
-                <Link to={`/explore?line=${encodeURIComponent(crumbLine)}&stationId=${fromStation.stationId}&cat=${place.categoryId}`}>{place.categoryName}</Link>
+                <Link to={`/explore?${regionQuery}&cat=${place.categoryId}`}>{place.categoryName}</Link>
               </nav>
             )}
             <div className="detail-hero__chips">
@@ -125,7 +116,13 @@ function Detail({ place, setPlace }) {
               <span className="muted">리뷰 {place.reviewCount}개</span>
             </a>
             <p className="detail-hero__addr muted">
-              {place.address} · <a href={`tel:${place.phone}`}>{place.phone}</a>
+              {place.address}
+              {place.phone && (
+                <>
+                  {' · '}
+                  <a href={`tel:${place.phone}`}>{place.phone}</a>
+                </>
+              )}
             </p>
             <div className="detail-hero__actions">
               <Button onClick={toggle} disabled={pending} aria-pressed={on} className={on ? 'is-bookmarked' : ''}>
@@ -153,38 +150,14 @@ function Detail({ place, setPlace }) {
       <NowStation steps={EXPLORE_STEPS} current={on ? 3 : 2} />
 
       <div className="container">
-        {/* 가는 방법: 내 위치(주변 탐색)에서 왔으면 내 위치, 역에서 왔으면 그 역, 아니면 마지막으로 고른 출발점 */}
+        {/* 가는 방법: 주변 탐색에서 고른 출발점 기준 어림 시간 + 카카오맵 길찾기 */}
         <section className="section">
           <RouteGuide origin={routeOrigin} dest={{ name: place.name, lat: place.lat, lng: place.lng }} />
         </section>
 
-        {/* 가까운 지하철역 */}
+        {/* 버스로 가기: 가까운 정류장 · 노선 · 실시간 도착 + 반려동물 버스 이용 안내 */}
         <section className="section">
-          <div className="section-head">
-            <h2 className="section-title">가까운 지하철역</h2>
-            <p className="section-sub">반경 1km 안에서 이 장소와 이어진 역</p>
-          </div>
-          {near.length === 0 ? (
-            <p className="muted">반경 1km 안에 지하철역이 없어요.</p>
-          ) : (
-            <div className="station-cards">
-              {near.map((s, i) => (
-                <Link key={s.stationName} to={`/explore?line=${encodeURIComponent(s.lines[0])}&stationId=${s.stationId}`} className={`station-card ${i === 0 ? 'is-nearest' : ''}`}>
-                  <span className="station-card__ring" aria-hidden />
-                  <b className="station-card__name">{stationLabel(s.stationName)}</b>
-                  <span className="station-card__lines">
-                    {s.lines.map((l) => (
-                      <LineChip key={l} line={l} tone={i === 0 ? 'line' : 'beige'} />
-                    ))}
-                  </span>
-                  <span className="station-card__km en">
-                    {formatKm(s.distanceKm).replace('km', '')}
-                    <small>km</small>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
+          <TransitPanel dest={{ name: place.name, lat: place.lat, lng: place.lng, busAccess: place.busAccess }} />
         </section>
 
         {/* 이용 안내 */}
@@ -281,10 +254,14 @@ function ReviewsSection({ place, setPlace }) {
     <section className="section" id="reviews">
       <div className="section-head">
         <h2 className="section-title">방문 후기</h2>
-        <Button size="sm" onClick={openWrite}>
-          리뷰 쓰기
-        </Button>
+        <div className="section-head__actions">
+          <KakaoReviewLink name={place.name} sigungu={place.sigungu} />
+          <Button size="sm" onClick={openWrite}>
+            리뷰 쓰기
+          </Button>
+        </div>
       </div>
+      <p className="review-source">펫 플래닛 회원이 남긴 후기예요. 다른 사이트의 후기는 카카오맵에서 볼 수 있어요.</p>
       {error && <ErrorState error={error} onRetry={load} />}
       {data && data.content.length === 0 && <EmptyState compact title="아직 후기가 없어요" desc="첫 번째 후기를 남겨 주세요." />}
       {data && data.content.length > 0 && (

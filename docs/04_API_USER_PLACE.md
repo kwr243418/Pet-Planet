@@ -3,6 +3,7 @@
 > 공통 응답·에러·인증·enum 규칙은 [03_API_CONVENTIONS](03_API_CONVENTIONS.md)을 따라요.
 > FE 목 서버(`frontend/src/mocks/mockServer.js`)가 이 명세대로 동작해서, BE API와 다른 점은 이 문서와 `frontend/src/api/index.js` 만 맞추면 돼요.
 > 🆕 표시는 현재 DB(`db/schema_full.sql`)에 없는 것 → [06_DB_DECISIONS](06_DB_DECISIONS.md) 결정 필요.
+> ⚠️ **2026-11-25 지하철 → 버스 전환**: §3 지하철역 API 와 `stationId` · `lines` · `nearestStation` · `nearbyStations` 는 없어졌어요. 지역 · 버스 API 는 [09_BUS_TRANSIT](09_BUS_TRANSIT.md).
 
 ## DB 칼럼 ↔ JSON 필드
 
@@ -10,15 +11,12 @@
 
 | 테이블.칼럼 | JSON 필드 | 이유 |
 |---|---|---|
-| `stations.name` | `stationName` | 장소 응답 안에 역이 들어갈 때 `name` 과 헷갈리지 않게 |
-| `stations.latitude` / `longitude`, `places.latitude` / `longitude` | `lat` / `lng` | 지도 코드에서 짧게 |
+| `places.latitude` / `longitude` (병원 · 호텔 · 정류장도) | `lat` / `lng` | 지도 코드에서 짧게 |
 | `places.allowed_size` | `maxSize` | 값은 `SMALL`/`MEDIUM`/`LARGE` (동반 가능 최대 크기) |
 | `places.indoor_outdoor` | `indoorType` | 값은 `INDOOR`/`OUTDOOR`/`BOTH` |
 | `pets.is_neutered` | `neutered` | boolean |
-| `place_stations.distance_km` | `distanceKm` | 숫자 (km) |
-
-- 역 이름은 `'홍대입구'`(권장) 또는 `'홍대입구역'` 어느 쪽으로 저장해도 화면은 `홍대입구역`으로 보여요.
-- 호선은 DB 값 그대로 `'2호선'`, `'신분당선'` …
+| (계산값) 내 위치에서 거리 | `distanceKm` | 숫자 (km) |
+| `nearest_stop_id` · `nearest_stop_m` · `stops_500m` + `bus_stops.name` | `busAccess` | 가장 가까운 버스 정류장 · 등급 ([09](09_BUS_TRANSIT.md) §4) |
 
 ## 1. 인증 · 회원 (users)
 
@@ -78,24 +76,11 @@
 - `gender`: `MALE`(수컷) | `FEMALE`(암컷) — DB `ENUM('MALE','FEMALE')`, `weight`: kg 소수 1자리 — **펫 호텔 객실 `room_types.max_weight` 검증에 사용**
 - 🆕 `photoUrl`: 지금 프론트는 240px 정사각 JPEG 썸네일을 **data URL**로 보내요(약 10~20KB). 이미지 업로드 API를 따로 만들지, 이대로 `MEDIUMTEXT`에 저장할지, 사진을 빼고 갈지 팀 결정 필요.
 
-## 3. 지하철역 (stations)
+## 3. 지하철역 (stations) — 2026-11-25 삭제
 
-| Method | Path | 설명 |
-|---|---|---|
-| GET | `/stations?line=2호선` | 🆕 **노선도용**: 해당 호선의 역을 `seq` 순서대로 |
-| GET | `/stations?keyword=홍대` | 역 이름 검색 (역 이름으로 묶어서), 최대 10개 |
-| GET | `/stations/{stationId}` | 단건 |
+지하철역 테이블과 API(`/stations`)는 지웠어요. 대신 지역 목록(`/regions`)과 버스 정류장 API(`/bus-stops/…`)를 써요 → [09_BUS_TRANSIT](09_BUS_TRANSIT.md) §5.
 
-🆕 **stations 테이블에 `seq`(노선 내 순서) 컬럼이 필요해요.** S02 노선도("당산–합정–홍대입구–신촌…")는 순서 없이 그릴 수 없어요. 공공데이터 원본에 역 순서/역번호가 있으면 그걸로 채우면 됩니다.
-
-```jsonc
-// GET /stations?line=2호선  (역 1행 = 역이름 + 호선 + 순서)
-[{ "stationId": 3, "stationName": "홍대입구", "line": "2호선", "seq": 3, "lat": 37.5572, "lng": 126.9245,
-   "lines": ["2호선", "경의중앙선", "공항철도"] }]   // lines = 이 역을 지나는 모든 호선 (환승 표시용)
-```
-호선 값: `1호선`~`9호선`, `신분당선`, `수인분당선`, `경의중앙선`, `공항철도` (공공데이터 표기). 화면 기본은 1~9호선, "전체 노선 보기"에서 나머지 표시.
-
-## 4. 장소 (places, place_categories, place_stations)
+## 4. 장소 (places, place_categories)
 
 | Method | Path | Auth | 설명 |
 |---|---|---|---|
@@ -109,31 +94,32 @@
 
 | 파라미터 | 예 | 설명 |
 |---|---|---|
-| stationId | `3` | 이 역 기준 반경 검색 (+ `distanceKm`) |
-| radiusKm | `0.5` \| `1` | 🔁 S02 "역에서 거리" (기본 1) |
+| lat, lng | `34.79`, `126.38` | 내 위치 기준 반경 검색 (+ `distanceKm`) |
+| radiusKm | `1` \| `3` \| `5` | "출발점에서 거리" (기본 1, 최대 5) |
+| sido, sigungu | `전남`, `목포시` | 지역별 탐색 (`전라남도` 처럼 긴 이름도 받아요) |
+| nearStop | `true` | 버스 정류장 300m 안만 |
 | categoryIds | `1,2` | 카테고리 OR (여러 개 선택) |
 | sizes | `SMALL,MEDIUM` | 선택한 크기를 **모두 동반 가능한** 장소 (`max_size >= 각 크기`) |
 | indoor | `INDOOR,BOTH` | 실내외 OR. 화면 "실내" = `INDOOR,BOTH`, "실외" = `OUTDOOR,BOTH`, "전체" = 생략 |
-| sort | `distance` \| `reviews` | 🔁 가까운 순 / 리뷰 많은 순 |
+| sort | `distance` \| `reviews` \| `rating` \| `transit` | 가까운 순 / 리뷰 많은 순 / 별점 순 / 정류장 가까운 순 |
 | page, size | `0`, `8` | |
 
 ```jsonc
 // 목록 아이템
 {
   "placeId": 1, "name": "산책길 브런치 카페", "categoryId": 1, "categoryName": "카페",
-  "address": "서울 마포구 ...", "lat": 37.55, "lng": 126.92,
+  "address": "서울 마포구 ...", "sido": "서울", "sigungu": "마포구", "lat": 37.55, "lng": 126.92,
   "maxSize": "MEDIUM",            // SMALL | MEDIUM | LARGE (동반 가능 최대 크기)
   "indoorType": "INDOOR",         // INDOOR | OUTDOOR | BOTH
   "imageUrl": null,               // 🆕 대표 사진 (없으면 프론트가 영문 카테고리 일러스트로 대체)
   "avgRating": 4.5, "reviewCount": 3, "bookmarked": false,
-  "nearestStation": { "stationId": 3, "stationName": "홍대입구", "lines": ["2호선","경의중앙선","공항철도"], "distanceKm": 0.3 },
-  "distanceKm": 0.296             // stationId 로 검색했을 때만
+  "busAccess": { "stopId": "…", "stopName": "목포역", "distanceM": 120, "walkMin": 2, "stops500m": 6, "routeCount": 0, "grade": "A", "gradeLabel": "버스 정류장이 아주 가까워요" },
+  "distanceKm": 0.296             // lat · lng 로 검색했을 때만
 }
 // 상세 = 목록 아이템 + 아래
-{ "phone": "02-...", "description": "공공데이터 원문 설명", "bookmarkCount": 12,
-  "nearbyStations": [{ "stationId": 3, "stationName": "홍대입구", "lines": ["2호선","경의중앙선","공항철도"], "lat": 37.5572, "lng": 126.9245, "distanceKm": 0.296 }] }
+{ "phone": "02-...", "description": "공공데이터 원문 설명", "bookmarkCount": 12 }
 ```
-- 상세의 `nearbyStations`는 place_stations에서 **1km 이내 역을 가까운 순으로**, 같은 역 이름은 호선을 묶어서.
+- 상세 화면의 가까운 정류장 목록 · 노선 · 실시간 도착은 `/bus-stops/nearby?lat=&lng=` 등으로 따로 불러요 ([09](09_BUS_TRANSIT.md)).
 - S03 "카카오맵 길찾기"는 프론트에서 `https://map.kakao.com/link/to/{장소명},{lat},{lng}` 로 열어요 (API 불필요).
 
 ## 5. 찜 (place_bookmarks)
@@ -176,26 +162,24 @@
 ## 7. SQL 예시 (BE1 참고)
 
 ```sql
--- 노선도: 2호선 역을 순서대로 (stations.seq 필요)
-SELECT station_id, name, line, seq, latitude, longitude
-FROM stations WHERE line = ? ORDER BY seq;
-
--- 역 이름 검색: 호선 묶기 (LINES 는 MySQL 예약어라 line_codes 로)
-SELECT MIN(station_id) AS station_id, name,
-       GROUP_CONCAT(line ORDER BY line) AS line_codes, AVG(latitude) AS lat, AVG(longitude) AS lng
-FROM stations WHERE name LIKE CONCAT('%', ?, '%')
-GROUP BY name LIMIT 10;
-
--- 역 기준 반경 검색 + 다중 필터, 가까운 순 (MySQL 5.7+)
-SELECT p.*, ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(s.longitude, s.latitude)) / 1000 AS distance_km
+-- 내 위치 반경 검색 + 다중 필터 + 가장 가까운 버스 정류장, 가까운 순 (MySQL 5.7+)
+SELECT p.*, bs.name AS stop_name,
+       ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:lng, :lat)) / 1000 AS distance_km
 FROM places p
-JOIN stations s ON s.station_id = ?
-WHERE p.category_id IN (1, 2)                 -- 카테고리 (선택)
+LEFT JOIN bus_stops bs ON bs.stop_id = p.nearest_stop_id
+WHERE ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(:lng, :lat)) <= :radiusM
+  AND p.category_id IN (1, 2)                 -- 카테고리 (선택)
   AND p.allowed_size IN ('MEDIUM', 'LARGE')   -- 중형 선택 시: 중형 이상 가능한 곳
   AND p.indoor_outdoor IN ('INDOOR', 'BOTH')  -- 실내 선택 시
-HAVING distance_km <= ?                       -- 0.5 또는 1
+  AND p.nearest_stop_m <= 300                 -- 정류장 300m 안 (선택)
 ORDER BY distance_km
 LIMIT ? OFFSET ?;
+
+-- 지역별: 전남 목포시, 정류장 가까운 순
+SELECT p.name, p.nearest_stop_m, bs.name AS stop_name
+FROM places p LEFT JOIN bus_stops bs ON bs.stop_id = p.nearest_stop_id
+WHERE p.sido = '전남' AND p.sigungu = '목포시'
+ORDER BY p.nearest_stop_m IS NULL, p.nearest_stop_m;
 
 -- 평균 별점·리뷰 수
 SELECT ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS review_count
@@ -216,7 +200,7 @@ SELECT
 
 - 회원가입 반려동물은 **1~5마리** (0마리면 `400`). 검증 규칙은 FE `utils/validators.js` 와 같아요.
 - 비밀번호 찾기: 메일 서버가 없어서 임시 비밀번호를 **서버 로그**에 남겨요. `petplanet.demo-mode: true` 면 응답에 `temporaryPassword` 도 넣어요.
-- `GET /places` 는 목 서버처럼 `lines`(호선 OR), `keyword`, `sort=rating` 도 받아요. 반경은 최대 3km.
+- `GET /places` 는 `keyword`, `sort=rating` 도 받아요. 반경은 최대 5km. (11/25: `lines` 삭제, 지역 · 정류장 필터 추가)
 - 리뷰 응답에 `petWeight`, `visitDate`(병원 리뷰 — 그 병원 이용완료 예약 날짜), `targetName` 을 더했어요.
 - `GET /reviews/eligibility?targetType=&targetId=` → `{ allowed, alreadyReviewed, reason }` (리뷰 쓰기 버튼 표시용)
 - 리뷰 작성 시 `petId` 를 보낼 수 있어요 (없으면 병원 리뷰는 이용완료 예약의 반려동물, 그 외는 대표 반려동물로 표시).

@@ -1,5 +1,7 @@
 # frontend — PET PLANET 웹
 
+> ⚠️ 2026-11-25 지하철 → 버스 · 지역별 탐색으로 바뀌었어요. 역 · 호선 관련 내용은 [docs/09_BUS_TRANSIT.md](../docs/09_BUS_TRANSIT.md)를 보세요.
+
 React 18 + Vite + React Router 6. UI 라이브러리 없이 팀 목업 디자인을 공통 컴포넌트로 만들었어요.
 백엔드 없이도 **목(mock) 서버**로 동작하고, BE API가 준비되면 `.env.local` 한 줄로 전환해요.
 

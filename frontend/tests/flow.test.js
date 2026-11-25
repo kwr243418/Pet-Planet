@@ -1,8 +1,8 @@
 // 시연 시나리오 통합 테스트 — 목 서버로 FE1 데이터 흐름 전체를 검증
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMockServer, PLACE_STATIONS, NEARBY_KM } from '../src/mocks/mockServer.js';
-import { LINE_STATIONS, PLACES, PLACE_CATEGORIES } from '../src/mocks/seed.js';
+import { createMockServer } from '../src/mocks/mockServer.js';
+import { PLACES, PLACE_CATEGORIES } from '../src/mocks/seed.js';
 
 const mem = () => {
   const m = new Map();
@@ -27,34 +27,67 @@ test('시드: 카테고리는 목업 기준 4종(카페·식당·숙소·운동�
   assert.ok(PLACES.every((p) => [1, 2, 3, 4].includes(p.categoryId)));
 });
 
-test('place_stations: 모든 매핑이 1km 이내, 모든 장소에 인접역 1개 이상', () => {
-  assert.ok(PLACE_STATIONS.every((m) => m.distanceKm <= NEARBY_KM));
-  for (const p of PLACES) assert.ok(PLACE_STATIONS.some((m) => m.placeId === p.placeId), `${p.name} has no station`);
+test('모든 시드 장소에 지역(시도 · 시군구)과 가장 가까운 버스 정류장이 붙어요', () => {
+  const api = createMockServer({ storage: mem() });
+  const all = api.handle('GET', '/places', { query: { size: 50 } }).content;
+  assert.equal(all.length, PLACES.length);
+  for (const p of all) {
+    assert.equal(p.sido, '서울');
+    assert.match(p.sigungu, /구$/);
+    assert.ok(['A', 'B', 'C', 'D'].includes(p.busAccess.grade), `${p.name} grade`);
+  }
+  // 지하철 필드는 더 이상 없어요
+  assert.equal(all[0].nearestStation, undefined);
 });
 
-test('노선도: 호선별 역이 순서(seq)대로, 환승 호선 포함', () => {
+test('S02 내 근처: 홍대입구 근처 반경 1km → 목업과 같은 0.3 / 0.6 / 0.7 / 0.9km, 0.5km 필터', () => {
   const api = createMockServer({ storage: mem() });
-  const line2 = api.handle('GET', '/stations', { query: { line: '2호선' } });
-  assert.deepEqual(line2.map((s) => s.stationName), LINE_STATIONS['2호선']);
-  assert.deepEqual(line2.map((s) => s.seq), LINE_STATIONS['2호선'].map((_, i) => i + 1));
-  const hongdae = line2.find((s) => s.stationName === '홍대입구');
-  assert.deepEqual(hongdae.lines, ['2호선', '경의중앙선', '공항철도']);
-});
-
-test('S01/S02: 홍대입구 반경 1km → 목업과 같은 0.3 / 0.6 / 0.7 / 0.9km, 0.5km 필터', () => {
-  const api = createMockServer({ storage: mem() });
-  const hd = api.handle('GET', '/stations', { query: { line: '2호선' } }).find((s) => s.stationName === '홍대입구');
-  const res = api.handle('GET', '/places', { query: { stationId: hd.stationId, radiusKm: 1 } });
+  const HONGDAE = { lat: 37.5572, lng: 126.9245 };
+  const res = api.handle('GET', '/places', { query: { ...HONGDAE, radiusKm: 1 } });
   assert.deepEqual(res.content.slice(0, 4).map((p) => Math.round(p.distanceKm * 10) / 10), [0.3, 0.6, 0.7, 0.9]);
-  const half = api.handle('GET', '/places', { query: { stationId: hd.stationId, radiusKm: 0.5 } });
+  const half = api.handle('GET', '/places', { query: { ...HONGDAE, radiusKm: 0.5 } });
   assert.ok(half.content.every((p) => p.distanceKm <= 0.5));
   assert.ok(half.totalElements < res.totalElements);
   // 실내 필터 = 실내 + 실내·외 모두
-  const indoor = api.handle('GET', '/places', { query: { stationId: hd.stationId, indoor: 'INDOOR,BOTH' } });
+  const indoor = api.handle('GET', '/places', { query: { ...HONGDAE, indoor: 'INDOOR,BOTH' } });
   assert.ok(indoor.content.every((p) => p.indoorType !== 'OUTDOOR'));
   // 리뷰 많은 순
-  const byReviews = api.handle('GET', '/places', { query: { stationId: hd.stationId, sort: 'reviews' } }).content.map((p) => p.reviewCount);
+  const byReviews = api.handle('GET', '/places', { query: { ...HONGDAE, sort: 'reviews' } }).content.map((p) => p.reviewCount);
   assert.deepEqual(byReviews, [...byReviews].sort((a, b) => b - a));
+});
+
+test('S02 지역별: 시도 → 시군구 목록과 필터, 정류장 300m · 정류장 가까운 순', () => {
+  const api = createMockServer({ storage: mem() });
+  const regions = api.handle('GET', '/regions', { query: { type: 'place' } });
+  const seoul = regions.find((r) => r.sido === '서울');
+  assert.equal(seoul.count, PLACES.length);
+  const mapo = seoul.sigungus.find((g) => g.name === '마포구');
+  const res = api.handle('GET', '/places', { query: { sido: '서울특별시', sigungu: '마포구', size: 50 } });
+  assert.equal(res.totalElements, mapo.count);
+  assert.ok(res.content.every((p) => p.sigungu === '마포구'));
+  const near = api.handle('GET', '/places', { query: { sido: '서울', nearStop: true, size: 50 } });
+  assert.ok(near.totalElements > 0 && near.totalElements < PLACES.length);
+  assert.ok(near.content.every((p) => p.busAccess.distanceM <= 300));
+  const transit = api.handle('GET', '/places', { query: { sido: '서울', sort: 'transit', size: 50 } }).content.map((p) => p.busAccess.distanceM ?? Infinity);
+  assert.deepEqual(transit, [...transit].sort((a, b) => a - b));
+  expectError(() => api.handle('GET', '/places', { query: { sido: '목포' } }), 400, 'VALIDATION_ERROR');
+  assert.equal(api.handle('GET', '/places', { query: { sido: '전남' } }).totalElements, 0);
+});
+
+test('버스: 근처 정류장 · 노선 · 실시간 도착(가상)', () => {
+  const api = createMockServer({ storage: mem() });
+  const stops = api.handle('GET', '/bus-stops/nearby', { query: { lat: 34.7914, lng: 126.3866, radiusM: 500 } });
+  assert.ok(stops.length >= 2);
+  const d = stops.map((s) => s.distanceM);
+  assert.deepEqual(d, [...d].sort((a, b) => a - b));
+  const routes = api.handle('GET', `/bus-stops/${stops[0].stopId}/routes`);
+  assert.equal(routes.length, stops[0].routeCount);
+  const arr = api.handle('GET', `/bus-stops/${stops[0].stopId}/arrivals`);
+  assert.equal(arr.status, 'OK');
+  const mins = arr.arrivals.map((a) => a.minutes);
+  assert.deepEqual(mins, [...mins].sort((a, b) => a - b));
+  expectError(() => api.handle('GET', '/bus-stops/NOPE/arrivals'), 404, 'BUS_STOP_NOT_FOUND');
+  expectError(() => api.handle('GET', '/bus-stops/nearby', { query: { lat: 0, lng: 0 } }), 400, 'INVALID_LOCATION');
 });
 
 test('S09: 계정 + 첫 반려동물을 한 번에 가입 (하나라도 틀리면 아무것도 저장 안 됨)', () => {

@@ -9,10 +9,8 @@ import com.petplanet.common.Times;
 import com.petplanet.pet.PetService;
 import com.petplanet.pet.PetService.Pet;
 import com.petplanet.reservation.ReservationPolicy;
-import com.petplanet.station.Origin;
-import com.petplanet.station.StationDirectory;
-import com.petplanet.station.StationDirectory.Station;
-import com.petplanet.station.StationDirectory.StationRef;
+import com.petplanet.transit.BusAccess;
+import com.petplanet.transit.Origin;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -38,11 +36,10 @@ public class HospitalService {
     private static final LocalTime FIRST_SLOT = LocalTime.of(10, 0);
     private static final LocalTime LAST_SLOT = LocalTime.of(17, 30);
     private static final String DEFAULT_LUNCH = "13:00-14:00";
-    private static final double NEAREST_MAX_KM = 3.0;
 
     public record Hospital(long hospitalId, String name, String address, String phone, double lat, double lng,
                            String operatingHours, String intro, List<String> departments, String lunchTime, boolean partner,
-                           double avgRating, long reviewCount, StationRef nearestStation, Double distanceKm) {
+                           double avgRating, long reviewCount, String sido, String sigungu, BusAccess busAccess, Double distanceKm) {
     }
 
     public record Slot(String time, boolean available) {
@@ -64,23 +61,21 @@ public class HospitalService {
     private static final String SELECT = """
             SELECT h.hospital_id, h.user_id, h.name, h.address, h.phone, h.latitude, h.longitude, h.operating_hours,
                    h.intro, h.departments, h.lunch_time,
-                   COALESCE(r.avg_rating, 0) AS avg_rating, COALESCE(r.review_count, 0) AS review_count
-            """;
+                   COALESCE(r.avg_rating, 0) AS avg_rating, COALESCE(r.review_count, 0) AS review_count,
+            """ + BusAccess.columns("h") + "\n";
 
     private static final String FROM = """
             FROM hospitals h
             LEFT JOIN (SELECT target_id, ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS review_count
                        FROM reviews WHERE target_type = 'HOSPITAL' GROUP BY target_id) r ON r.target_id = h.hospital_id
-            """;
+            """ + BusAccess.join("h");
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final StationDirectory stations;
     private final PetService pets;
     private final ReservationPolicy policy;
 
-    public HospitalService(NamedParameterJdbcTemplate jdbc, StationDirectory stations, PetService pets, ReservationPolicy policy) {
+    public HospitalService(NamedParameterJdbcTemplate jdbc, PetService pets, ReservationPolicy policy) {
         this.jdbc = jdbc;
-        this.stations = stations;
         this.pets = pets;
         this.policy = policy;
     }
@@ -96,19 +91,20 @@ public class HospitalService {
                     lat, lng, rs.getString("operating_hours"), rs.getString("intro"), departments, rs.getString("lunch_time"),
                     Rs.longOrNull(rs, "user_id") != null,
                     Rs.dblOrZero(rs, "avg_rating"), rs.getLong("review_count"),
-                    stations.nearest(lat, lng, NEAREST_MAX_KM), withDistance ? Rs.km(rs, "distance_km") : null);
+                    rs.getString("sido"), rs.getString("sigungu"), BusAccess.from(rs), withDistance ? Rs.km(rs, "distance_km") : null);
         };
     }
 
     /**
-     * GET /hospitals — 역을 고르면 그 역에서 가까운 순 (ST_Distance_Sphere), 아니면 제휴 병원 먼저.
-     * partner=true 면 예약을 받는 제휴 병원(사업자 계정이 연결된 곳)만.
+     * GET /hospitals — 내 위치를 주면 가까운 순 (ST_Distance_Sphere), 아니면 제휴 병원 먼저.
+     * 지역(sido · sigungu) · 버스 정류장 300m(nearStop) 필터, partner=true 면 예약을 받는 제휴 병원만.
      */
-    public PageResponse<Hospital> list(Long stationId, Double lat, Double lng, Double radiusKm, String keyword, Boolean partner, Integer page, Integer size) {
+    public PageResponse<Hospital> list(Double lat, Double lng, Double radiusKm, String sido, String sigungu, Boolean nearStop,
+                                       String keyword, Boolean partner, Integer page, Integer size) {
         Paging paging = Paging.of(page, size, 10, 50);
         MapSqlParameterSource p = new MapSqlParameterSource();
         List<String> where = new ArrayList<>();
-        Station origin = Origin.resolve(stations, stationId, lat, lng);
+        Origin.Point origin = Origin.resolve(lat, lng);
         if (origin != null) {
             p.addValue("slat", origin.lat()).addValue("slng", origin.lng());
             if (radiusKm != null && radiusKm > 0) {
@@ -120,11 +116,12 @@ public class HospitalService {
             where.add("(h.name LIKE CONCAT('%', :kw, '%') OR h.address LIKE CONCAT('%', :kw, '%'))");
             p.addValue("kw", keyword.trim());
         }
+        BusAccess.filters("h", sido, sigungu, nearStop, where, p);
         if (Boolean.TRUE.equals(partner)) where.add("h.user_id IS NOT NULL");
         String whereSql = where.isEmpty() ? "" : " WHERE " + String.join(" AND ", where);
         String distance = origin != null ? ", ST_Distance_Sphere(POINT(h.longitude, h.latitude), POINT(:slng, :slat)) / 1000 AS distance_km\n" : "";
         String orderBy = origin != null ? "distance_km, h.hospital_id"
-                : "(h.user_id IS NULL), (h.intro IS NULL), h.hospital_id";
+                : "(h.user_id IS NULL), (h.intro IS NULL), (h.nearest_stop_m IS NULL), h.nearest_stop_m, h.hospital_id"; // 지역: 제휴 → 정류장 가까운 순
 
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM hospitals h" + whereSql, p, Long.class);
         p.addValue("limit", paging.size()).addValue("offset", paging.offset());

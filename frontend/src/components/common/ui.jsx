@@ -2,7 +2,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TinyDog } from '../illust/index.jsx';
-import { lineName } from '../../utils/subway.js';
 
 const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -124,12 +123,11 @@ export function PasswordRules({ value = '' }) {
   );
 }
 
-/** 작은 베이지 칩 (호선·카테고리 표시용, 선택 기능 없음) */
+/** 작은 베이지 칩 (카테고리 · 지역 표시용, 선택 기능 없음) */
 export function Tag({ children, tone = 'beige', className }) {
   return <span className={cx('tag', `tag--${tone}`, className)}>{children}</span>;
 }
 
-export const LineChip = ({ line, tone }) => <Tag tone={tone}>{lineName(line)}</Tag>;
 
 /** 별점 표시 — 테라코타 */
 export function Stars({ value = 0, size = 16 }) {

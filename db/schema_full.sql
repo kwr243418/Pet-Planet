@@ -1,5 +1,7 @@
 -- ============================================================================
--- Pet-Planet Database Schema - Full (All 18 Tables with Seed Data)
+-- Pet-Planet Database Schema - Full (All 19 Tables with Seed Data)
+-- 2026-11-25: 지하철(stations · place_stations) → 버스(bus_stops · bus_routes · bus_route_stops)로 교체 (docs/09_BUS_TRANSIT.md)
+--             지역(sido · sigungu) · 대중교통 접근성 칼럼은 db/patch_bus_transit.sql 에서 추가해요
 -- MySQL 8.0 / MariaDB 10.5+ Compatible
 -- ============================================================================
 -- Database: petplanet
@@ -20,7 +22,8 @@ SET foreign_key_checks = 0;
 -- Respecting foreign key dependencies for safe deletion
 
 DROP TABLE IF EXISTS place_bookmarks;
-DROP TABLE IF EXISTS place_stations;
+DROP TABLE IF EXISTS place_stations;   -- 예전 지하철 매핑 (2026-11-25 삭제, 남아 있으면 지워요)
+DROP TABLE IF EXISTS bus_route_stops;
 DROP TABLE IF EXISTS hotel_reservations;
 DROP TABLE IF EXISTS hospital_reservations;
 DROP TABLE IF EXISTS room_types;
@@ -35,7 +38,9 @@ DROP TABLE IF EXISTS pets;
 DROP TABLE IF EXISTS places;
 DROP TABLE IF EXISTS product_categories;
 DROP TABLE IF EXISTS place_categories;
-DROP TABLE IF EXISTS stations;
+DROP TABLE IF EXISTS stations;         -- 예전 지하철역 (2026-11-25 삭제, 남아 있으면 지워요)
+DROP TABLE IF EXISTS bus_routes;
+DROP TABLE IF EXISTS bus_stops;
 DROP TABLE IF EXISTS users;
 
 -- ============================================================================
@@ -61,20 +66,34 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자';
 
 -- ============================================================================
--- DOMAIN 2: PLACE (5 Tables) - Part 1: Base Tables
+-- DOMAIN 2: PLACE (6 Tables: 장소 3 + 버스 3) - Part 1: Base Tables
 -- ============================================================================
 
-CREATE TABLE stations (
-    station_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '역 ID',
-    name VARCHAR(50) NOT NULL COMMENT '역명',
-    line VARCHAR(20) NOT NULL COMMENT '호선',
+-- 버스 정류장 (국토교통부 전국 버스정류장 위치정보, 적재기 --bus-stops 로 채워요)
+CREATE TABLE bus_stops (
+    stop_id VARCHAR(30) PRIMARY KEY COMMENT '정류장 ID (국토교통부 정류장번호)',
+    name VARCHAR(100) NOT NULL COMMENT '정류장명',
     latitude DECIMAL(10,7) NOT NULL COMMENT '위도',
     longitude DECIMAL(10,7) NOT NULL COMMENT '경도',
+    city_code VARCHAR(10) COMMENT '도시코드 (실시간 도착정보 조회에 필요)',
+    city_name VARCHAR(30) COMMENT '도시명',
+    collected_at DATE COMMENT '정보 수집일',
 
-    INDEX idx_name (name),
-    INDEX idx_line (line),
-    INDEX idx_coordinates (latitude, longitude)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='지하철역';
+    INDEX idx_bus_stops_coordinates (latitude, longitude),
+    INDEX idx_bus_stops_city (city_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='버스 정류장';
+
+-- 버스 노선 (국토교통부 버스노선별 경유정류장 API)
+CREATE TABLE bus_routes (
+    route_id VARCHAR(30) PRIMARY KEY COMMENT '노선 ID',
+    route_no VARCHAR(30) NOT NULL COMMENT '노선번호 (예: 1-2)',
+    route_name VARCHAR(100) COMMENT '노선명',
+    sido VARCHAR(20) COMMENT '시/도',
+    sigungu VARCHAR(30) COMMENT '시/군/구',
+
+    INDEX idx_bus_routes_region (sido, sigungu),
+    INDEX idx_bus_routes_no (route_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='버스 노선';
 
 CREATE TABLE place_categories (
     category_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '카테고리 ID',
@@ -215,21 +234,20 @@ CREATE TABLE pet_hotels (
 -- PLACE DOMAIN (Continued) - Part 3: M2M Relationship Tables
 -- ============================================================================
 
-CREATE TABLE place_stations (
-    mapping_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '매핑 ID',
-    place_id BIGINT NOT NULL COMMENT '장소 ID',
-    station_id BIGINT NOT NULL COMMENT '역 ID',
-    distance_km DECIMAL(4,2) NOT NULL COMMENT '거리(km)',
+-- 노선 ↔ 정류장 (N:M, 노선이 정류장을 지나는 순서)
+CREATE TABLE bus_route_stops (
+    route_id VARCHAR(30) NOT NULL COMMENT '노선 ID',
+    stop_seq INT NOT NULL COMMENT '노선 안 정류장 순번',
+    stop_id VARCHAR(30) NOT NULL COMMENT '정류장 ID',
 
-    CONSTRAINT fk_place_stations_place_id FOREIGN KEY (place_id)
-        REFERENCES places(place_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_place_stations_station_id FOREIGN KEY (station_id)
-        REFERENCES stations(station_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY (route_id, stop_seq),
+    CONSTRAINT fk_bus_route_stops_route_id FOREIGN KEY (route_id)
+        REFERENCES bus_routes(route_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_bus_route_stops_stop_id FOREIGN KEY (stop_id)
+        REFERENCES bus_stops(stop_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
-    UNIQUE KEY uk_place_station (place_id, station_id),
-    INDEX idx_station_id (station_id),
-    INDEX idx_distance (distance_km)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='장소-역 매핑';
+    INDEX idx_bus_route_stops_stop (stop_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='노선별 경유 정류장';
 
 CREATE TABLE place_bookmarks (
     bookmark_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '북마크 ID',
@@ -407,12 +425,6 @@ INSERT INTO pets (user_id, name, breed, weight, gender, is_neutered) VALUES
 (1, '초코', '골든리트리버', 28.00, 'MALE', FALSE),
 (2, '뭉치', '시추', 3.20, 'MALE', TRUE);
 
--- Stations (3 records)
-INSERT INTO stations (name, line, latitude, longitude) VALUES
-('강남역', '2호선', 37.4979, 127.0276),
-('서울역', '1호선', 37.5548, 126.9707),
-('홍대입구역', '2호선', 37.5565, 126.9245);
-
 -- Place Categories (3 records)
 INSERT INTO place_categories (name) VALUES
 ('카페'),
@@ -424,12 +436,6 @@ INSERT INTO places (category_id, name, address, phone, latitude, longitude, desc
 (1, '펫프렌들리카페', '서울시 강남구 강남대로 1번지', '02-1234-5678', 37.4979, 127.0276, '개와 고양이 모두 환영합니다', 'SMALL~LARGE', '실내'),
 (2, '남산공원', '서울시 중구 남산공원길 105', '02-3783-5900', 37.5517, 126.9884, '산책로가 잘 정비되어 있습니다', 'ALL', '실외'),
 (3, '펫랜드마트', '서울시 마포구 홍대로 50번지', '02-9876-5432', 37.5565, 126.9245, '펫 용품 종합판매점', 'N/A', '실내');
-
--- Place Stations (3 records)
-INSERT INTO place_stations (place_id, station_id, distance_km) VALUES
-(1, 1, 0.30),
-(2, 2, 0.50),
-(3, 3, 0.20);
 
 -- Place Bookmarks (2 records)
 INSERT INTO place_bookmarks (user_id, place_id) VALUES

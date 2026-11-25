@@ -2,7 +2,7 @@
 // mockServer.js 의 handle() 이 회원·장소 API 다음에 이 함수를 불러요. 맞는 경로가 없으면 NO_MATCH 를 돌려줘요.
 
 import { haversineKm } from '../utils/geo.js';
-import { STATIONS } from './seed.js';
+import { accessFields, byStop, matchRegion, originOf } from './seedTransit.js';
 import { HOSPITALS, PET_HOTELS, PRODUCT_CATEGORIES, ROOM_TYPES, SHIPPING_FEE, seoulDate, slotTimes } from './seedCommerce.js';
 
 export const NO_MATCH = Symbol('NO_MATCH');
@@ -11,23 +11,6 @@ const ACTIVE = ['PENDING', 'CONFIRMED'];
 const RESERVATION_NEXT = { PENDING: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['COMPLETED', 'CANCELLED'], COMPLETED: [], CANCELLED: [] };
 const ORDER_FLOW = ['ORDERED', 'PREPARING', 'SHIPPING', 'DELIVERED'];
 const PHONE_RE = /^01[016789]-?\d{3,4}-?\d{4}$/;
-
-const linesOf = (name) => STATIONS.filter((s) => s.stationName === name).map((s) => s.line);
-
-/** 좌표에서 가장 가까운 역 (3km 넘으면 null) */
-export function nearestStation(lat, lng) {
-  let best = null;
-  let bestKm = Infinity;
-  for (const s of STATIONS) {
-    const d = haversineKm(lat, lng, s.lat, s.lng);
-    if (d < bestKm) {
-      bestKm = d;
-      best = s;
-    }
-  }
-  if (!best || bestKm > 3) return null;
-  return { stationId: best.stationId, stationName: best.stationName, line: best.line, seq: best.seq, lat: best.lat, lng: best.lng, lines: linesOf(best.stationName), distanceKm: Number(bestKm.toFixed(3)) };
-}
 
 const page = (rows, query, defSize) => {
   const p = Math.max(0, Number(query.page) || 0);
@@ -63,7 +46,7 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
   const toHospital = (h, origin) => ({
     hospitalId: h.hospitalId, name: h.name, address: h.address, phone: h.phone, lat: h.lat, lng: h.lng, operatingHours: h.operatingHours,
     intro: h.intro, departments: h.departments, lunchTime: h.lunchTime, partner: !!h.ownerId, ...ratingOf(db, 'HOSPITAL', h.hospitalId),
-    nearestStation: nearestStation(h.lat, h.lng), distanceKm: origin ? Number(haversineKm(origin.lat, origin.lng, h.lat, h.lng).toFixed(3)) : null,
+    ...accessFields(h.address, h.lat, h.lng), distanceKm: origin ? Number(haversineKm(origin.lat, origin.lng, h.lat, h.lng).toFixed(3)) : null,
   });
   const hospitalOr404 = (id) => HOSPITALS.find((h) => h.hospitalId === Number(id)) ?? fail(404, 'HOSPITAL_NOT_FOUND', '존재하지 않는 동물병원이에요.');
 
@@ -73,17 +56,13 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
     return {
       hotelId: h.hotelId, name: h.name, address: h.address, phone: h.phone, lat: h.lat, lng: h.lng, partner: !!h.ownerId,
       roomCount: rooms.length, minPrice: rooms.length ? Math.min(...rooms.map((x) => x.pricePerNight)) : null,
-      nearestStation: nearestStation(h.lat, h.lng), distanceKm: origin ? Number(haversineKm(origin.lat, origin.lng, h.lat, h.lng).toFixed(3)) : null,
+      ...accessFields(h.address, h.lat, h.lng), distanceKm: origin ? Number(haversineKm(origin.lat, origin.lng, h.lat, h.lng).toFixed(3)) : null,
       rooms: withRooms ? rooms.map((x) => ({ ...x, status: null, totalPrice: null })) : null,
     };
   };
   const hotelOr404 = (id) => PET_HOTELS.find((h) => h.hotelId === Number(id)) ?? fail(404, 'HOTEL_NOT_FOUND', '존재하지 않는 펫 호텔이에요.');
 
-  const origin = () => {
-    if (query.lat != null && query.lng != null) return { stationId: 0, stationName: '내 위치', lat: Number(query.lat), lng: Number(query.lng) };
-    if (!query.stationId) return null;
-    return STATIONS.find((s) => s.stationId === Number(query.stationId)) ?? fail(404, 'STATION_NOT_FOUND', '존재하지 않는 지하철역이에요.');
-  };
+  const origin = () => originOf(query, fail);
   const kwMatch = (x) => !query.keyword || x.name.includes(String(query.keyword).trim()) || x.address.includes(String(query.keyword).trim());
 
   const petName = (petId) => db.pets.find((x) => x.petId === petId)?.name ?? null;
@@ -146,9 +125,10 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
   // ===== 동물병원 =====
   if ((p = r.is('GET', '/hospitals'))) {
     const o = origin();
-    let rows = HOSPITALS.filter((h) => kwMatch(h) && (String(query.partner) !== 'true' || h.ownerId)).map((h) => toHospital(h, o));
+    let rows = HOSPITALS.filter((h) => kwMatch(h) && (String(query.partner) !== 'true' || h.ownerId)).map((h) => toHospital(h, o)).filter((h) => matchRegion(h, query, fail));
     if (o && Number(query.radiusKm) > 0) rows = rows.filter((h) => h.distanceKm <= Number(query.radiusKm));
     if (o) rows.sort((a, b) => a.distanceKm - b.distanceKm);
+    else rows.sort((a, b) => !a.partner - !b.partner || byStop(a, b) || a.hospitalId - b.hospitalId); // 지역: 제휴 → 정류장 가까운 순
     return page(rows, query, 10);
   }
   if ((p = r.is('GET', '/hospitals/:id'))) return toHospital(hospitalOr404(p.id));
@@ -207,9 +187,10 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
   // ===== 펫 호텔 =====
   if ((p = r.is('GET', '/pet-hotels'))) {
     const o = origin();
-    let rows = PET_HOTELS.filter((h) => kwMatch(h) && (String(query.bookable) !== 'true' || roomsOf(h.hotelId).length)).map((h) => toHotel(h, o, false));
+    let rows = PET_HOTELS.filter((h) => kwMatch(h) && (String(query.bookable) !== 'true' || roomsOf(h.hotelId).length)).map((h) => toHotel(h, o, false)).filter((h) => matchRegion(h, query, fail));
     if (o && Number(query.radiusKm) > 0) rows = rows.filter((h) => h.distanceKm <= Number(query.radiusKm));
     if (o) rows.sort((a, b) => a.distanceKm - b.distanceKm);
+    else rows.sort((a, b) => !a.roomCount - !b.roomCount || byStop(a, b) || a.hotelId - b.hotelId); // 지역: 예약 가능 → 정류장 가까운 순
     return page(rows, query, 10);
   }
   if ((p = r.is('GET', '/pet-hotels/:id'))) return toHotel(hotelOr404(p.id), null, true);

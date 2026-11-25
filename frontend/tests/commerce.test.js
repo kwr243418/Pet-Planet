@@ -45,7 +45,8 @@ test('동물병원: 제휴 목록·상세·시드 예약으로 내일 14:00 마�
   const h1 = api.handle('GET', '/hospitals/1');
   assert.equal(h1.name, '홍대 펫메디컬센터');
   assert.equal(h1.reviewCount, 3);
-  assert.ok(h1.nearestStation?.stationName);
+  assert.ok(h1.busAccess?.stopName);
+  assert.equal(h1.sido, '서울');
   const tomorrow = seoulDate(1);
   const { slots } = api.handle('GET', '/hospitals/1/available-times', { query: { date: tomorrow } });
   assert.equal(slots.find((x) => x.time === '14:00').available, false);

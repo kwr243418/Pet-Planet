@@ -2,12 +2,16 @@
 // BE API가 준비되면 VITE_USE_MOCK=false 로 바꾸기만 하면 같은 화면이 실제 API로 동작해요.
 
 import { haversineKm } from '../utils/geo.js';
-import { STATIONS, PLACE_CATEGORIES, PLACES, SEED_USERS, SEED_PETS, SEED_REVIEWS, SEED_BOOKMARKS } from './seed.js';
-import { HOSPITALS, PRODUCTS, commerceSeed } from './seedCommerce.js';
+import { SIDO_ORDER } from '../utils/region.js';
+import { walkMinutes } from '../utils/transit.js';
+import { PLACE_CATEGORIES, PLACES, SEED_USERS, SEED_PETS, SEED_REVIEWS, SEED_BOOKMARKS } from './seed.js';
+import { HOSPITALS, PET_HOTELS, PRODUCTS, commerceSeed } from './seedCommerce.js';
+import { accessFields, busStopById, byStop, matchRegion as matchRegionWith, mockArrivals, originOf as originWith, stopsNear } from './seedTransit.js';
 import { NO_MATCH, commerceRoutes, reviewNotAllowedReason, visitDateOf } from './mockCommerce.js';
 
-const DB_KEY = 'pp-mock-db-v3'; // v3: FE2 예약·쇼핑 데이터 추가
-export const NEARBY_KM = 1; // place_stations 매핑 기준 반경
+const DB_KEY = 'pp-mock-db-v4'; // v4: 11/25 상품 이름(대중교통용 이동장) · 버스 데이터
+export const DEFAULT_RADIUS_KM = 1;
+export const MAX_RADIUS_KM = 5;
 
 // ---------- 저장소 (브라우저: localStorage / 테스트: 메모리) ----------
 const memoryStore = new Map();
@@ -34,19 +38,6 @@ function freshDb() {
   };
 }
 
-// place_stations: 장소별 반경 1km 이내 역 (BE1이 하버사인으로 미리 계산해 저장하는 테이블과 동일)
-export const PLACE_STATIONS = (() => {
-  const rows = [];
-  let id = 1;
-  for (const p of PLACES) {
-    for (const s of STATIONS) {
-      const d = haversineKm(p.lat, p.lng, s.lat, s.lng);
-      if (d <= NEARBY_KM) rows.push({ mappingId: id++, placeId: p.placeId, stationId: s.stationId, distanceKm: Number(d.toFixed(3)) });
-    }
-  }
-  return rows;
-})();
-
 export class MockHttpError extends Error {
   constructor(status, code, message, fieldErrors) {
     super(message);
@@ -58,6 +49,8 @@ export class MockHttpError extends Error {
 const fail = (status, code, message, fieldErrors) => {
   throw new MockHttpError(status, code, message, fieldErrors);
 };
+const originOf = (query) => originWith(query, fail);
+const matchRegion = (x, query) => matchRegionWith(x, query, fail);
 
 const encodeToken = (userId) => `mock.${btoa(JSON.stringify({ uid: userId, iat: Date.now() }))}`;
 function decodeToken(token) {
@@ -70,29 +63,8 @@ function decodeToken(token) {
 }
 
 // ---------- 조회 헬퍼 ----------
-const stationById = new Map(STATIONS.map((s) => [s.stationId, s]));
 const categoryById = new Map(PLACE_CATEGORIES.map((c) => [c.categoryId, c]));
 const SIZE_ORDER = { SMALL: 1, MEDIUM: 2, LARGE: 3 };
-const linesOf = (name) => STATIONS.filter((s) => s.stationName === name).map((s) => s.line);
-
-/** 역 단건 응답: 선택한 호선 행 + 이 역을 지나는 모든 호선 */
-const toStation = (s) => ({ stationId: s.stationId, stationName: s.stationName, line: s.line, seq: s.seq, lat: s.lat, lng: s.lng, lines: linesOf(s.stationName) });
-
-function groupStations(rows) {
-  const map = new Map();
-  for (const s of rows) {
-    if (!map.has(s.stationName)) map.set(s.stationName, { ...toStation(s), distanceKm: s.distanceKm });
-  }
-  return [...map.values()];
-}
-
-/** 장소의 인접역(역 이름 기준으로 묶음, 가까운 순) */
-function nearbyStationsOf(placeId) {
-  const rows = PLACE_STATIONS.filter((m) => m.placeId === placeId)
-    .map((m) => ({ ...stationById.get(m.stationId), distanceKm: m.distanceKm }))
-    .sort((a, b) => a.distanceKm - b.distanceKm);
-  return groupStations(rows);
-}
 
 function ratingOf(db, targetType, targetId) {
   const list = db.reviews.filter((r) => r.targetType === targetType && r.targetId === targetId);
@@ -101,13 +73,13 @@ function ratingOf(db, targetType, targetId) {
 }
 
 function toPlaceSummary(db, p, { userId, origin } = {}) {
-  const near = nearbyStationsOf(p.placeId);
   return {
     placeId: p.placeId,
     name: p.name,
     categoryId: p.categoryId,
     categoryName: categoryById.get(p.categoryId)?.name,
     address: p.address,
+    ...accessFields(p.address, p.lat, p.lng), // sido · sigungu · busAccess
     lat: p.lat,
     lng: p.lng,
     maxSize: p.maxSize,
@@ -115,7 +87,6 @@ function toPlaceSummary(db, p, { userId, origin } = {}) {
     imageUrl: p.imageUrl,
     ...ratingOf(db, 'PLACE', p.placeId),
     bookmarked: !!userId && db.bookmarks.some((b) => b.userId === userId && b.placeId === p.placeId),
-    nearestStation: near[0] ?? null,
     distanceKm: origin ? Number(haversineKm(origin.lat, origin.lng, p.lat, p.lng).toFixed(3)) : null,
   };
 }
@@ -124,27 +95,18 @@ const csv = (v, map = (x) => x) =>
   v === undefined || v === null || v === '' ? [] : String(v).split(',').filter(Boolean).map(map);
 
 /**
- * 다중 조건 장소 검색 (BE1 "다중 조건 장소 검색 SQL"에 대응)
- * query: stationId | lat+lng(내 위치), radiusKm(0.5~5), categoryIds, sizes, indoor, lines, keyword, sort(distance|reviews|rating), page, size
+ * 다중 조건 장소 검색 (백엔드 PlaceService.search 와 같은 규칙)
+ * query: lat+lng(내 위치)+radiusKm(≤5) | sido+sigungu(지역), nearStop, categoryIds, sizes, indoor, keyword, sort(distance|reviews|rating|transit), page, size
  */
 export function searchPlaces(db, query = {}, userId) {
   const categoryIds = csv(query.categoryIds, Number);
-  const lines = csv(query.lines);
   const sizes = csv(query.sizes);
   const indoor = csv(query.indoor);
   const keyword = (query.keyword ?? '').trim();
-  const radiusKm = Math.min(Number(query.radiusKm) || NEARBY_KM, 5);
+  const radiusKm = Math.min(Number(query.radiusKm) || DEFAULT_RADIUS_KM, MAX_RADIUS_KM);
   const page = Math.max(0, Number(query.page) || 0);
   const size = Math.min(50, Math.max(1, Number(query.size) || 10));
-
-  let origin = null;
-  if (query.lat != null && query.lng != null) {
-    // 내 위치 기준 (백엔드 Origin.resolve 와 같은 규칙)
-    origin = { stationId: 0, stationName: '내 위치', lat: Number(query.lat), lng: Number(query.lng) };
-  } else if (query.stationId) {
-    origin = stationById.get(Number(query.stationId));
-    if (!origin) fail(404, 'STATION_NOT_FOUND', '존재하지 않는 지하철역이에요.');
-  }
+  const origin = originOf(query);
 
   const rows = PLACES.filter((p) => {
     if (categoryIds.length && !categoryIds.includes(p.categoryId)) return false;
@@ -152,18 +114,17 @@ export function searchPlaces(db, query = {}, userId) {
     if (indoor.length && !indoor.includes(p.indoorType)) return false;
     if (keyword && !(p.name.includes(keyword) || p.address.includes(keyword))) return false;
     if (origin && haversineKm(origin.lat, origin.lng, p.lat, p.lng) > radiusKm) return false;
-    if (lines.length) {
-      const near = PLACE_STATIONS.filter((m) => m.placeId === p.placeId).map((m) => stationById.get(m.stationId).line);
-      if (!near.some((l) => lines.includes(l))) return false;
-    }
     return true;
-  }).map((p) => toPlaceSummary(db, p, { userId, origin }));
+  })
+    .map((p) => toPlaceSummary(db, p, { userId, origin }))
+    .filter((p) => matchRegion(p, query));
 
   const sort = query.sort || (origin ? 'distance' : 'reviews');
   const sorters = {
     distance: (a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0),
     reviews: (a, b) => b.reviewCount - a.reviewCount || b.avgRating - a.avgRating,
     rating: (a, b) => b.avgRating - a.avgRating || b.reviewCount - a.reviewCount,
+    transit: (a, b) => byStop(a, b) || b.reviewCount - a.reviewCount,
   };
   rows.sort(sorters[sort] ?? sorters.reviews);
 
@@ -317,19 +278,39 @@ export function createMockServer({ storage = defaultStorage } = {}) {
       return null;
     }
 
-    // ===== 지하철역 =====
-    if ((p = r.is('GET', '/stations'))) {
-      if (query.line) {
-        // 노선도용: 해당 호선의 역을 순서대로
-        return STATIONS.filter((s) => s.line === String(query.line)).sort((a, b) => a.seq - b.seq).map(toStation);
+    // ===== 지역 · 버스 (docs/09) =====
+    if ((p = r.is('GET', '/regions'))) {
+      const source = { place: PLACES, hospital: HOSPITALS, hotel: PET_HOTELS }[query.type ?? 'place'];
+      if (!source) fail(400, 'VALIDATION_ERROR', '입력값을 확인해 주세요.', [{ field: 'type', message: 'type 은 place, hospital, hotel 중 하나예요.' }]);
+      const map = new Map();
+      for (const x of source) {
+        const { sido, sigungu } = accessFields(x.address, x.lat, x.lng);
+        if (!sido) continue;
+        const e = map.get(sido) ?? { sido, count: 0, sg: new Map() };
+        e.count++;
+        if (sigungu) e.sg.set(sigungu, (e.sg.get(sigungu) ?? 0) + 1);
+        map.set(sido, e);
       }
-      const kw = String(query.keyword ?? '').trim().replace(/역$/, '');
-      if (!kw) return [];
-      return groupStations(STATIONS.filter((s) => s.stationName.replace(/역$/, '').includes(kw))).slice(0, 10);
+      return SIDO_ORDER.filter((s) => map.has(s)).map((s) => {
+        const e = map.get(s);
+        return { sido: s, count: e.count, sigungus: [...e.sg].sort((a, b) => a[0].localeCompare(b[0], 'ko')).map(([name, count]) => ({ name, count })) };
+      });
     }
-    if ((p = r.is('GET', '/stations/:id'))) {
-      const s = stationById.get(Number(p.id)) ?? fail(404, 'STATION_NOT_FOUND', '존재하지 않는 지하철역이에요.');
-      return toStation(s);
+    if ((p = r.is('GET', '/bus-stops/nearby'))) {
+      const o = originOf(query) ?? fail(400, 'VALIDATION_ERROR', '입력값을 확인해 주세요.', [{ field: 'lat', message: '위치(lat, lng)가 필요해요.' }]);
+      const radius = Math.max(50, Math.min(Number(query.radiusM) || 500, 1000));
+      const limit = Math.max(1, Math.min(Number(query.limit) || 5, 20));
+      return stopsNear(o.lat, o.lng, radius)
+        .slice(0, limit)
+        .map(({ s, m }) => ({ stopId: s.stopId, name: s.name, lat: s.lat, lng: s.lng, cityCode: s.cityCode, cityName: s.cityName, distanceM: m, walkMin: walkMinutes(m), routeCount: s.routes.length }));
+    }
+    if ((p = r.is('GET', '/bus-stops/:id/routes'))) {
+      const s = busStopById(p.id) ?? fail(404, 'BUS_STOP_NOT_FOUND', '존재하지 않는 버스 정류장이에요.');
+      return s.routes.map((no) => ({ routeId: `R-${no}`, routeNo: no, routeName: null }));
+    }
+    if ((p = r.is('GET', '/bus-stops/:id/arrivals'))) {
+      const s = busStopById(p.id) ?? fail(404, 'BUS_STOP_NOT_FOUND', '존재하지 않는 버스 정류장이에요.');
+      return { stopId: s.stopId, stopName: s.name, status: 'OK', message: '목 서버의 가상 도착 정보예요.', fetchedAt: new Date().toISOString(), arrivals: mockArrivals(s) };
     }
     if ((p = r.is('GET', '/place-categories'))) return PLACE_CATEGORIES;
 
@@ -341,7 +322,6 @@ export function createMockServer({ storage = defaultStorage } = {}) {
         ...toPlaceSummary(db, place, { userId: me?.userId }),
         phone: place.phone,
         description: place.description,
-        nearbyStations: nearbyStationsOf(place.placeId),
         bookmarkCount: db.bookmarks.filter((b) => b.placeId === place.placeId).length,
       };
     }

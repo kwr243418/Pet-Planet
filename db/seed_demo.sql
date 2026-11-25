@@ -1,6 +1,7 @@
 -- ============================================================================
 -- Pet-Planet 시연용 데이터 (BE2) — 시연 시나리오 docs/07 에 맞춘 계정 · 반려동물 · 제휴 병원/호텔 · 상품 · 예약 · 주문 · 리뷰
--- 실행 순서: schema_full.sql → patch_v2_proposed.sql → seed_dev_places.sql → (이 파일) → (선택) db/loader 공공데이터 적재
+-- 실행 순서: schema_full.sql → patch_v2_proposed.sql → patch_be2_public_data.sql → patch_bus_transit.sql
+--            → seed_dev_places.sql → (이 파일) → (선택) db/loader 공공데이터 적재
 -- 여러 번 실행해도 돼요. 이 파일이 만든 데이터와 schema_full.sql 의 옛 샘플만 지우고 다시 넣어요.
 --
 -- ⚠️ 병원·호텔·리뷰는 모두 "가상" 데이터예요 (실제 업체가 아님). 공공데이터로 넣은 실제 병원·호텔에는 리뷰를 넣지 않아요.
@@ -104,6 +105,12 @@ INSERT INTO pet_hotels (user_id, name, address, phone, latitude, longitude) VALU
 (@partner, '포근 펫호텔 합정', '서울 마포구 토정로 000 (시연용)', '02-000-0102', 37.5500000, 126.9150000);
 SET @t2 := LAST_INSERT_ID();
 
+-- 지역 (주소 첫 두 단어) — 지역별 탐색 필터. patch_bus_transit.sql 의 칼럼이 먼저 필요해요
+UPDATE hospitals SET sido = '서울', sigungu = SUBSTRING_INDEX(SUBSTRING_INDEX(address, ' ', 2), ' ', -1)
+WHERE hospital_id IN (@h1, @h2, @h3);
+UPDATE pet_hotels SET sido = '서울', sigungu = SUBSTRING_INDEX(SUBSTRING_INDEX(address, ' ', 2), ' ', -1)
+WHERE hotel_id IN (@t1, @t2);
+
 INSERT INTO room_types (hotel_id, room_name, price_per_night, max_weight) VALUES (@t1, '미디엄 룸', 45000, 15);
 SET @room_m := LAST_INSERT_ID();
 INSERT INTO room_types (hotel_id, room_name, price_per_night, max_weight) VALUES (@t1, '라지 룸', 60000, 30);
@@ -130,9 +137,9 @@ INSERT INTO products (product_id, category_id, name, price, stock_quantity, desc
 (7, 3, '배변패드 100매', 15000, 60, '흡수력이 좋은 두꺼운 패드예요.'),
 (8, 3, '저자극 샴푸 300ml', 12000, 18, '피부가 예민한 아이도 쓸 수 있는 약산성 샴푸예요.'),
 (9, 3, '귀 세정제 120ml', 9800, 25, '산책 후 귀 청소용.'),
-(10, 4, '지하철용 소프트 이동장', 49000, 12, '대중교통 규정에 맞춘 크기의 가벼운 이동장이에요.'),
+(10, 4, '대중교통용 소프트 이동장', 49000, 12, '대중교통 규정에 맞춘 크기의 가벼운 이동장이에요.'),
 (11, 4, '산책용 하네스 (소형)', 18000, 5, '가슴을 감싸는 H형 하네스.'),
-(12, 4, '접이식 휴대 물병', 11000, 35, '산책·지하철 이동 중에 물을 줄 수 있는 휴대 물병이에요.');
+(12, 4, '접이식 휴대 물병', 11000, 35, '산책·버스 이동 중에 물을 줄 수 있는 휴대 물병이에요.');
 
 -- ----------------------------------------------------------------------------
 -- 5. 예약 — 날짜는 오늘 기준이라 언제 실행해도 시연이 돼요
@@ -190,7 +197,7 @@ INSERT INTO reviews (user_id, target_type, target_id, pet_id, rating, content, c
 (@r1, 'HOSPITAL', @h2, @p1, 4, '예방접종 받으러 갔는데 친절했어요. 주차는 조금 불편해요.', NOW() - INTERVAL 11 DAY),
 (@r1, 'PRODUCT', 1, @p1, 5, '알러지 있는 두부도 잘 먹어요. 변 상태도 좋아졌어요.', NOW() - INTERVAL 20 DAY),
 (@r1, 'PRODUCT', 4, @p1, 4, '산책 보상 간식으로 딱이에요. 조금 딱딱해서 잘라서 줘요.', NOW() - INTERVAL 20 DAY),
-(@r2, 'PRODUCT', 10, @p2, 5, '지하철 탈 때 들고 다니기 가볍고 튼튼해요. 소형견용으로 추천해요.', NOW() - INTERVAL 15 DAY),
+(@r2, 'PRODUCT', 10, @p2, 5, '버스 탈 때 들고 다니기 가볍고 튼튼해요. 소형견용으로 추천해요.', NOW() - INTERVAL 15 DAY),
 (@r2, 'PRODUCT', 6, @p2, 4, '달지 않고 쫀득해서 잘 먹어요.', NOW() - INTERVAL 15 DAY),
 -- 장소 리뷰 (seed_dev_places 의 홍대입구 근처 장소 1·3번)
 (@r1, 'PLACE', 1, @p1, 5, '경의선숲길 산책하고 들르기 좋아요. 물그릇도 바로 챙겨 주세요.', NOW() - INTERVAL 6 DAY),
