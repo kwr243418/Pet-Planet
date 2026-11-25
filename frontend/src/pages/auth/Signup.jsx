@@ -94,7 +94,7 @@ export default function Signup() {
     try {
       await signup({ email: normEmail, password: account.password, name: account.name.trim(), role: account.role, pets: pets.map(toPetPayload) });
       toast.show('가입 완료! 펫플래닛 전 노선에 탑승했어요');
-      navigate(params.get('redirect') || '/', { replace: true });
+      navigate(params.get('redirect') || '/home', { replace: true });
     } catch (err) {
       if (err.code === 'DUPLICATE_EMAIL') setEmailCheck({ status: 'taken', email: normEmail });
       if (err.fieldErrors?.length) {
@@ -125,7 +125,7 @@ export default function Signup() {
             </h1>
             <div className="ticket" aria-label="가입 단계">
               <div className="ticket__head en">
-                <span>PET PLANET</span>
+                <span>펫 플래닛</span>
                 <span>ALL LINES</span>
               </div>
               <ol className="ticket__steps">

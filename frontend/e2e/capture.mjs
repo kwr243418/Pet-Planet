@@ -15,7 +15,8 @@ mkdirSync(OUT, { recursive: true });
 
 const SHOTS = [
   // [파일 이름, 경로, 로그인 필요, 찍기 전 동작]
-  ['s01-home', '/', false],
+  ['s00-intro', '/', false],
+  ['s01-home', '/home', false],
   ['s02-explore', '/explore?line=2%ED%98%B8%EC%84%A0', false],
   ['s02-explore-filter', '/explore?line=2%ED%98%B8%EC%84%A0&cat=1&sizes=SMALL', false],
   ['s03-place-detail', '/places/1', true],

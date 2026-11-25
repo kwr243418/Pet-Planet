@@ -31,6 +31,8 @@ public class PlaceController {
     @GetMapping("/places")
     public PageResponse<Place> search(@RequestAttribute(name = AuthInterceptor.USER_ID, required = false) Long userId,
                                       @RequestParam(name = "stationId", required = false) Long stationId,
+                                      @RequestParam(name = "lat", required = false) Double lat,
+                                      @RequestParam(name = "lng", required = false) Double lng,
                                       @RequestParam(name = "radiusKm", required = false) Double radiusKm,
                                       @RequestParam(name = "categoryIds", required = false) String categoryIds,
                                       @RequestParam(name = "sizes", required = false) String sizes,
@@ -40,7 +42,7 @@ public class PlaceController {
                                       @RequestParam(name = "sort", required = false) String sort,
                                       @RequestParam(name = "page", required = false) Integer page,
                                       @RequestParam(name = "size", required = false) Integer size) {
-        return places.search(new SearchQuery(stationId, radiusKm, categoryIds, sizes, indoor, lines, keyword, sort, page, size),
+        return places.search(new SearchQuery(stationId, lat, lng, radiusKm, categoryIds, sizes, indoor, lines, keyword, sort, page, size),
                 Auth.orAnonymous(userId));
     }
 

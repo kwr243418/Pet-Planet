@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { cartApi, shopApi } from '../../api/index.js';
 import { useAsync } from '../../hooks/useAsync.js';
 import { usePageTitle } from '../../hooks/usePage.js';
+import { productImage } from '../../utils/productImages.js';
 import './fe2.css';
 
 // 사진이 없을 때 쓰는 영문 배너 (docs/02_DESIGN_GUIDE.md)
@@ -16,10 +17,12 @@ const won = (n) => `${n.toLocaleString('ko-KR')}원`;
 
 function ProductCard({ product, onAdd, onNotify, adding }) {
   const lowStock = !product.soldOut && product.stockQuantity <= 5;
+  const image = productImage(product);
   return (
     <article className="fe2-product card">
-      <div className="fe2-product__banner">
-        {product.imageUrl ? <img src={product.imageUrl} alt="" /> : <span className="en">{CATEGORY_WORD[product.categoryId]}</span>}
+      <div className={`fe2-product__banner ${image.engraving ? 'is-engraving' : ''}`}>
+        <img src={image.src} alt="" loading="lazy" />
+        {image.engraving && <span className="en">{CATEGORY_WORD[product.categoryId]}</span>}
         {product.soldOut && <span className="fe2-product__soldout">품절</span>}
       </div>
       <div>

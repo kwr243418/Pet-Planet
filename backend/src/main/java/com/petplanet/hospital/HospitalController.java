@@ -35,12 +35,14 @@ public class HospitalController {
 
     @GetMapping("/hospitals")
     public PageResponse<Hospital> list(@RequestParam(name = "stationId", required = false) Long stationId,
+                                    @RequestParam(name = "lat", required = false) Double lat,
+                                    @RequestParam(name = "lng", required = false) Double lng,
                                        @RequestParam(name = "radiusKm", required = false) Double radiusKm,
                                        @RequestParam(name = "keyword", required = false) String keyword,
                                        @RequestParam(name = "partner", required = false) Boolean partner,
                                        @RequestParam(name = "page", required = false) Integer page,
                                        @RequestParam(name = "size", required = false) Integer size) {
-        return hospitals.list(stationId, radiusKm, keyword, partner, page, size);
+        return hospitals.list(stationId, lat, lng, radiusKm, keyword, partner, page, size);
     }
 
     @GetMapping("/hospitals/{hospitalId}")

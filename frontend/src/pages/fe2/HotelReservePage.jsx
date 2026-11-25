@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { NowStation, PageHero } from '../../components/layout/Site.jsx';
 import { StationBuildings } from '../../components/illust/index.jsx';
 import { Button, EmptyState, ErrorState, OptionGroup, PageLoader, Spinner, Tag } from '../../components/common/ui.jsx';
@@ -41,7 +41,8 @@ export default function HotelReservePage() {
   usePageTitle('펫 호텔 예약');
   const toast = useToast();
   const { isLoggedIn, booting, pets } = useAuth();
-  const [hotelId, setHotelId] = useState(null);
+  const [params] = useSearchParams();
+  const [hotelId, setHotelId] = useState(() => Number(params.get('hotelId')) || null); // 주변 탐색에서 고른 호텔
   const [petId, setPetId] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -94,7 +95,7 @@ export default function HotelReservePage() {
 
   const hero = (
     <>
-      <PageHero line="R" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
+      <PageHero line="R" photo="/images/a5-hotel-retriever.jpg" en={'PET\nSTAY'} title={'체중에 맞는 객실만\n골라 보여드려요'} desc={'등록한 반려동물의 체중을 객실의 최대 수용 몸무게와 자동으로 비교하고,\n이미 확정된 예약과 겹치는 날짜는 막아 드려요.'} art={<StationBuildings />} />
       <NowStation steps={['예약 선택', '호텔 선택', '객실 · 체중 검증', '예약 완료']} current={done ? 3 : 2} />
     </>
   );

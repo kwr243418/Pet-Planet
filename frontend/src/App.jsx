@@ -5,6 +5,7 @@ import { ToastProvider, useToast } from './components/common/Toast.jsx';
 import { PageLoader } from './components/common/ui.jsx';
 import { SiteFooter, SiteHeader } from './components/layout/Site.jsx';
 import { ErrorBoundary, OfflineBanner, ScrollToTop } from './components/layout/AppChrome.jsx';
+import Intro from './pages/Intro.jsx';
 import Home from './pages/Home.jsx';
 import Explore from './pages/Explore.jsx';
 import PlaceDetail from './pages/PlaceDetail.jsx';
@@ -28,21 +29,23 @@ function RequireAuth({ children }) {
 function GuestOnly({ children }) {
   const { isLoggedIn, booting } = useAuth();
   if (booting) return <PageLoader />;
-  return isLoggedIn ? <Navigate to="/" replace /> : children;
+  return isLoggedIn ? <Navigate to="/home" replace /> : children;
 }
 
-/** 공통 레이아웃: 헤더(홈은 크림, 나머지는 민트 상단과 이어지게) + 본문 + 푸터 */
+/** 공통 레이아웃: 검정 헤더 + 본문 + 푸터. 첫 화면(소개)은 자체 상단·하단을 써요 */
 function Shell() {
   const { pathname } = useLocation();
+  const isIntro = pathname === '/';
   return (
     <>
       <ScrollToTop />
       <OfflineBanner />
-      <SiteHeader tone={pathname === '/' ? 'cream' : 'mint'} />
+      {!isIntro && <SiteHeader tone="night" />}
       <main>
         <ErrorBoundary resetKey={pathname}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Intro />} />
+          <Route path="/home" element={<Home />} />
           {/* E 탐색선 (FE1) */}
           <Route path="/explore" element={<Explore />} />
           <Route path="/places/:placeId" element={<PlaceDetail />} />
@@ -65,7 +68,7 @@ function Shell() {
         </Routes>
         </ErrorBoundary>
       </main>
-      <SiteFooter />
+      {!isIntro && <SiteFooter />}
     </>
   );
 }

@@ -96,12 +96,12 @@ export default function KakaoMap({ appKey, center, markers, radiusKm, selectedId
       const circle = new kakao.maps.Circle({
         center: new kakao.maps.LatLng(center.lat, center.lng),
         radius: radiusKm * 1000,
-        strokeWeight: 2,
-        strokeColor: '#264536',
+        strokeWeight: 1.5,
+        strokeColor: '#8A6A3B',
         strokeOpacity: 0.8,
         strokeStyle: 'dash',
-        fillColor: '#c4ebc3',
-        fillOpacity: 0.25,
+        fillColor: '#C9A26B',
+        fillOpacity: 0.08,
       });
       circle.setMap(map);
       layers.current.push(circle);

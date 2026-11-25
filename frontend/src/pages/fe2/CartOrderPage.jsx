@@ -109,7 +109,7 @@ export default function CartOrderPage() {
 
   const hero = (
     <>
-      <PageHero line="S" en="ORDER" compact title="장바구니 · 주문서" desc="담은 상품을 확인하고 배송 정보를 입력해 가상 결제해요." art={<StationBuildings />} />
+      <PageHero line="S" photo="/images/c3-light-stilllife.jpg" en="ORDER" compact title="장바구니 · 주문서" desc="담은 상품을 확인하고 배송 정보를 입력해 가상 결제해요." art={<StationBuildings />} />
       <NowStation steps={['상품 목록', '장바구니', '주문서', '주문 완료']} current={done ? 3 : 2} />
     </>
   );

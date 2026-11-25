@@ -35,12 +35,14 @@ public class HotelController {
 
     @GetMapping("/pet-hotels")
     public PageResponse<Hotel> list(@RequestParam(name = "stationId", required = false) Long stationId,
+                                    @RequestParam(name = "lat", required = false) Double lat,
+                                    @RequestParam(name = "lng", required = false) Double lng,
                                     @RequestParam(name = "radiusKm", required = false) Double radiusKm,
                                     @RequestParam(name = "keyword", required = false) String keyword,
                                     @RequestParam(name = "bookable", required = false) Boolean bookable,
                                     @RequestParam(name = "page", required = false) Integer page,
                                     @RequestParam(name = "size", required = false) Integer size) {
-        return hotels.list(stationId, radiusKm, keyword, bookable, page, size);
+        return hotels.list(stationId, lat, lng, radiusKm, keyword, bookable, page, size);
     }
 
     @GetMapping("/pet-hotels/{hotelId}")

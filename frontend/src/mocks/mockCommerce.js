@@ -80,6 +80,7 @@ export function commerceRoutes({ r, db, me, auth, query, body, save, fail, ratin
   const hotelOr404 = (id) => PET_HOTELS.find((h) => h.hotelId === Number(id)) ?? fail(404, 'HOTEL_NOT_FOUND', '존재하지 않는 펫 호텔이에요.');
 
   const origin = () => {
+    if (query.lat != null && query.lng != null) return { stationId: 0, stationName: '내 위치', lat: Number(query.lat), lng: Number(query.lng) };
     if (!query.stationId) return null;
     return STATIONS.find((s) => s.stationId === Number(query.stationId)) ?? fail(404, 'STATION_NOT_FOUND', '존재하지 않는 지하철역이에요.');
   };

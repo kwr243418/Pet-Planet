@@ -79,7 +79,7 @@ export default function PetForm() {
 
   return (
     <>
-      <PageHero line="M" en={isEdit ? 'MY PET' : 'NEW PET'} compact title={isEdit ? `${pet.name} 정보 수정` : '반려동물 추가 등록'} desc="체중은 펫 호텔 객실의 최대 수용 몸무게와 자동으로 비교돼요." art={<SittingDog size={200} className="hero-dog" />} />
+      <PageHero line="M" photo="/images/f1-shiba.jpg" en={isEdit ? 'MY PET' : 'NEW PET'} compact title={isEdit ? `${pet.name} 정보 수정` : '반려동물 추가 등록'} desc="체중은 펫 호텔 객실의 최대 수용 몸무게와 자동으로 비교돼요." art={<SittingDog size={200} className="hero-dog" />} />
       <NowStation steps={MEMBER_STEPS} current={1} />
       <div className="container">
         <form className="card pet-form" onSubmit={submit} noValidate>

@@ -9,6 +9,7 @@ import com.petplanet.common.Times;
 import com.petplanet.pet.PetService;
 import com.petplanet.pet.PetService.Pet;
 import com.petplanet.reservation.ReservationPolicy;
+import com.petplanet.station.Origin;
 import com.petplanet.station.StationDirectory;
 import com.petplanet.station.StationDirectory.Station;
 import com.petplanet.station.StationDirectory.StationRef;
@@ -89,14 +90,12 @@ public class HotelService {
     }
 
     /** GET /pet-hotels — bookable=true 면 객실이 등록된(예약 가능한) 호텔만 */
-    public PageResponse<Hotel> list(Long stationId, Double radiusKm, String keyword, Boolean bookable, Integer page, Integer size) {
+    public PageResponse<Hotel> list(Long stationId, Double lat, Double lng, Double radiusKm, String keyword, Boolean bookable, Integer page, Integer size) {
         Paging paging = Paging.of(page, size, 10, 50);
         MapSqlParameterSource p = new MapSqlParameterSource();
         List<String> where = new ArrayList<>();
-        Station origin = null;
-        if (stationId != null) {
-            origin = stations.find(stationId);
-            if (origin == null) throw ApiException.notFound("STATION_NOT_FOUND", "존재하지 않는 지하철역이에요.");
+        Station origin = Origin.resolve(stations, stationId, lat, lng);
+        if (origin != null) {
             p.addValue("slat", origin.lat()).addValue("slng", origin.lng());
             if (radiusKm != null && radiusKm > 0) {
                 where.add("ST_Distance_Sphere(POINT(ht.longitude, ht.latitude), POINT(:slng, :slat)) <= :radiusM");

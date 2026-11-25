@@ -2,25 +2,30 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { categoryMeta } from '../../utils/categories.js';
 import { formatKm, INDOOR_SHORT, MAX_SIZE_SHORT } from '../../utils/format.js';
-import { TinyDog } from '../illust/index.jsx';
 import BookmarkButton from './BookmarkButton.jsx';
 
-/** 카드 상단: 영문 카테고리(CAFE·DINING·STAY·PARK)를 크게 */
-export function CategoryBanner({ categoryId, imageUrl, dog, height = 120, children }) {
+/** 카드 상단: 장소 사진, 없으면 카테고리 대표 사진 + 작은 영문 라벨(CAFE·DINING·STAY·PARK) */
+export function CategoryBanner({ categoryId, imageUrl, height = 120, children }) {
   const meta = categoryMeta(categoryId);
-  const [broken, setBroken] = useState(false); // 사진 주소가 깨지면 카테고리 단어로 대체 (Day 11)
+  const [broken, setBroken] = useState(false); // 사진 주소가 깨지면 카테고리 사진으로 대체 (Day 11)
   const showImg = imageUrl && !broken;
   return (
     <div className={`cat-banner cat-banner--${meta.tone}`} style={{ height }}>
-      {showImg ? <img src={imageUrl} alt="" className="cat-banner__img" loading="lazy" onError={() => setBroken(true)} /> : <span className="cat-banner__word en">{meta.en}</span>}
-      {dog && !showImg && <TinyDog size={Math.round(height * 0.62)} className="cat-banner__dog" />}
+      {showImg ? (
+        <img src={imageUrl} alt="" className="cat-banner__img" loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <>
+          <img src={meta.img} alt="" className="cat-banner__img" loading="lazy" />
+          <span className="cat-banner__word en">{meta.en}</span>
+        </>
+      )}
       {children}
     </div>
   );
 }
 
 /** 장소 설명 한 줄: "카페 · 소·중형 · 실내" */
-export const placeMeta = (p) => [p.categoryName ?? categoryMeta(p.categoryId).label, MAX_SIZE_SHORT[p.maxSize], INDOOR_SHORT[p.indoorType]].join(' · ');
+export const placeMeta = (p) => [p.categoryName ?? categoryMeta(p.categoryId).label, MAX_SIZE_SHORT[p.maxSize], INDOOR_SHORT[p.indoorType]].filter(Boolean).join(' · ');
 
 /** S02 결과 카드: 번호 · 하트 · 카테고리 · 장소명 · 카테고리/크기/실내외 · 거리 막대 + km */
 export function PlaceResultCard({ place, index, radiusKm, selected, onHover, onBookmarkChange, query = '' }) {

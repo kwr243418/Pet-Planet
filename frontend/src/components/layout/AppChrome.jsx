@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component {
             <button className="btn btn--outline btn--sm" onClick={() => this.setState({ error: null })}>
               다시 시도
             </button>
-            <a className="btn btn--primary btn--sm" href="/">
+            <a className="btn btn--primary btn--sm" href="/home">
               홈으로
             </a>
           </div>

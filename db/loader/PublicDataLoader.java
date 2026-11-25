@@ -5,7 +5,7 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * 펫플래닛 공공데이터 적재기 (BE2) — 동물병원 · 펫호텔(동물위탁관리업)
+ * 펫플래닛 공공데이터 적재기 (BE2) — 동물병원 · 펫호텔(동물위탁관리업) · 반려동물 동반 장소
  *
  * 1) 행정안전부 인허가 CSV에서 "영업/정상" 업체만 골라
  * 2) 좌표를 EPSG:5174(보정계수 없는 Bessel 중부원점 TM) → WGS84 위도·경도(카카오맵 좌표)로 바꾸고
@@ -23,6 +23,9 @@ import java.util.*;
  *   --host --port --db --user           접속 정보를 미리 줄 때 (비밀번호는 항상 입력 받음)
  *   --dry-run                           DB 없이 변환·매칭 결과만 출력
  *   --sql-out 파일.sql                   DB 대신 INSERT 문을 파일로 저장 (Workbench 등으로 실행)
+ *   --places                            --kcisa 파일의 "동반 가능(Y)" 카페·식당·숙소·여행지·문화시설을 places 에도 저장
+ *                                       (주변 탐색용. 약국·병원·용품·미용·위탁은 장소가 아니라 넣지 않아요)
+ *     예) java -cp mysql-connector-j-9.1.0.jar PublicDataLoader.java --kcisa kcisa.csv --places
  */
 public class PublicDataLoader {
 
@@ -38,15 +41,17 @@ public class PublicDataLoader {
     public static void main(String[] argv) throws Exception {
         Map<String, String> a = parseArgs(argv);
         String hospitalCsv = a.get("hospital"), hotelCsv = a.get("hotel"), kcisaCsv = a.get("kcisa");
-        if (hospitalCsv == null && hotelCsv == null) {
+        boolean withPlaces = a.containsKey("places");
+        if ((hospitalCsv == null && hotelCsv == null && !withPlaces) || (withPlaces && kcisaCsv == null)) {
             System.err.println("사용법: java -cp <mysql-connector-j.jar> PublicDataLoader.java "
-                    + "--hospital <동물병원.csv> --hotel <동물위탁관리업.csv> [--kcisa <한국문화정보원.csv>] "
-                    + "[--dry-run | --sql-out out.sql]");
+                    + "--hospital <동물병원.csv> --hotel <동물위탁관리업.csv> [--kcisa <한국문화정보원.csv>] [--places] "
+                    + "[--dry-run | --sql-out out.sql]   (--places 는 --kcisa 가 필요해요)");
             System.exit(1);
         }
 
-        KcisaIndex kcisa = kcisaCsv == null ? null : KcisaIndex.load(Path.of(kcisaCsv));
-        if (kcisa == null) System.out.println("※ --kcisa 가 없어 영업시간·휴무일은 비워 둬요.");
+        KcisaIndex kcisa = kcisaCsv == null || hospitalCsv == null ? null : KcisaIndex.load(Path.of(kcisaCsv));
+        if (kcisaCsv == null && hospitalCsv != null) System.out.println("※ --kcisa 가 없어 영업시간·휴무일은 비워 둬요.");
+        List<PlaceRow> places = withPlaces ? readPlaces(Path.of(kcisaCsv)) : List.of();
 
         List<Biz> hospitals = hospitalCsv == null ? List.of()
                 : readLicense(Path.of(hospitalCsv), "병원", kcisa, KCISA_HOSPITAL_CATS);
@@ -56,11 +61,12 @@ public class PublicDataLoader {
         if (a.containsKey("dry-run")) {
             printSamples("병원", hospitals);
             printSamples("호텔", hotels);
+            if (withPlaces) printPlaceSummary(places);
             System.out.println("dry-run 이라 DB 에는 저장하지 않았어요.");
             return;
         }
         if (a.containsKey("sql-out")) {
-            writeSqlFile(Path.of(a.get("sql-out")), hospitals, hotels);
+            writeSqlFile(Path.of(a.get("sql-out")), hospitals, hotels, places);
             return;
         }
 
@@ -70,9 +76,14 @@ public class PublicDataLoader {
                 + "&rewriteBatchedStatements=true&connectTimeout=10000";
         try (Connection con = DriverManager.getConnection(url, db.user, db.password)) {
             System.out.println("✔ DB 연결 성공: " + db.host + ":" + db.port + "/" + db.name);
-            ensureColumns(con);
+            if (!hospitals.isEmpty() || !hotels.isEmpty()) ensureColumns(con);
             if (!hospitals.isEmpty()) upsert(con, hospitals, true);
             if (!hotels.isEmpty()) upsert(con, hotels, false);
+            if (withPlaces) {
+                ensurePlaceColumns(con);
+                upsertPlaces(con, places);
+                mapPlaceStations(con);
+            }
             printDbCounts(con);
         } catch (SQLException e) {
             if (e.getMessage() != null && e.getMessage().contains("No suitable driver")) {
@@ -472,17 +483,219 @@ public class PublicDataLoader {
                 rs.next();
                 System.out.printf("  pet_hotels: 전체 %,d행 (공공데이터 %,d)%n", rs.getLong(1), rs.getLong(2));
             }
+            if (columnExists(con, "places", "source_key")) {
+                try (ResultSet rs = st.executeQuery("SELECT COUNT(*), SUM(source_key IS NOT NULL) FROM places")) {
+                    rs.next();
+                    System.out.printf("  places: 전체 %,d행 (공공데이터 %,d)%n", rs.getLong(1), rs.getLong(2));
+                }
+            }
         }
     }
 
+    // ------------------------------------------------------------------ 동반 장소 (--places)
+    /** 한국문화정보원 카테고리3 → place_categories 이름. 동반 "장소"만 넣어요 (약국·병원·용품·미용·위탁 제외) */
+    static final Map<String, String> PLACE_CATEGORY = Map.of(
+            "카페", "카페", "식당", "식당", "펜션", "숙소", "호텔", "숙소",
+            "여행지", "여행지", "박물관", "문화시설", "미술관", "문화시설", "문예회관", "문화시설");
+    /** 없으면 추가할 카테고리 (카페·식당·숙소는 seed_dev_places.sql 에 이미 있어요) */
+    static final List<String> PLACE_CATEGORY_NAMES = List.of("카페", "식당", "숙소", "여행지", "문화시설");
+
+    static class PlaceRow {
+        String key, category, name, address, phone, description, size, inout;
+        double lat, lng;
+    }
+
+    static List<PlaceRow> readPlaces(Path csv) throws IOException {
+        List<String[]> rows = Csv.read(csv);
+        Map<String, Integer> h = Csv.header(rows.remove(0));
+        int cName = col(h, "시설명"), cCat = col(h, "카테고리3"), cLat = col(h, "위도"), cLng = col(h, "경도"),
+                cRoad = col(h, "도로명주소"), cJibun = col(h, "지번주소"), cTel = col(h, "전화번호"),
+                cOff = col(h, "휴무일"), cHours = col(h, "운영시간"), cOk = col(h, "반려동물 동반 가능정보"),
+                cSize = col(h, "입장 가능 동물 크기"), cLimit = col(h, "반려동물 제한사항"),
+                cIn = col(h, "장소(실내) 여부"), cOut = col(h, "장소(실외)여부"), cDesc = col(h, "기본 정보_장소설명"),
+                cFee = col(h, "애견 동반 추가 요금");
+        List<PlaceRow> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        int notAllowed = 0, noCoord = 0;
+        for (String[] r : rows) {
+            String category = PLACE_CATEGORY.get(get(r, cCat));
+            if (category == null) continue;
+            if (!"Y".equals(get(r, cOk))) { notAllowed++; continue; }   // 동반 불가 시설은 제외
+            double lat, lng;
+            try { lat = Double.parseDouble(get(r, cLat)); lng = Double.parseDouble(get(r, cLng)); }
+            catch (NumberFormatException ex) { noCoord++; continue; }
+            if (!inKorea(lat, lng)) { noCoord++; continue; }
+            String address = get(r, cRoad).isEmpty() ? get(r, cJibun) : get(r, cRoad);
+            if (address.isEmpty()) continue;
+            String name = get(r, cName);
+            String key = md5(name + "|" + address);
+            if (!seen.add(key)) continue;   // 같은 시설이 여러 번 들어 있어요
+            PlaceRow p = new PlaceRow();
+            p.key = key;
+            p.category = category;
+            p.name = cut(name, 100);
+            p.address = cut(address, 255);
+            p.phone = cut(infoOrNull(get(r, cTel)), 20);
+            p.lat = round7(lat);
+            p.lng = round7(lng);
+            p.size = sizeOf(get(r, cSize));
+            p.inout = inOutOf(get(r, cIn), get(r, cOut));
+            p.description = describe(get(r, cCat), get(r, cDesc), get(r, cHours), get(r, cOff), get(r, cLimit), get(r, cFee));
+            out.add(p);
+        }
+        System.out.printf("[한국문화정보원] %s: 동반 장소 %,d곳 저장 대상 (동반 불가 %,d · 좌표 없음 %,d 제외)%n",
+                csv.getFileName(), out.size(), notAllowed, noCoord);
+        return out;
+    }
+
+    /** 입장 가능 동물 크기 → 동반 가능한 가장 큰 크기 (SMALL · MEDIUM · LARGE) */
+    static String sizeOf(String s) {
+        if (s.isEmpty() || s.equals("해당없음") || s.equals("정보없음")) return null;
+        if (s.contains("모두") || s.contains("대형")) return "LARGE";
+        if (s.contains("중형") || s.matches(".*(1[5-9]|2\\d)\\s*kg.*")) return "MEDIUM";
+        if (s.contains("소형") || s.contains("kg")) return "SMALL";
+        return null;
+    }
+
+    static String inOutOf(String in, String outside) {
+        boolean i = "Y".equals(in), o = "Y".equals(outside);
+        return i && o ? "BOTH" : i ? "INDOOR" : o ? "OUTDOOR" : null;
+    }
+
+    /** "운영시간 화~일 09:00~18:00 · 휴무 매주 월요일 · 제한사항: … · 동반 추가 요금: …" */
+    static String describe(String cat3, String desc, String hours, String off, String limit, String fee) {
+        List<String> parts = new ArrayList<>();
+        if (meaningful(desc) && !desc.equals(cat3)) parts.add(desc);
+        if (meaningful(hours)) parts.add("운영시간 " + hours);
+        if (meaningful(off)) parts.add("휴무 " + off);
+        if (meaningful(limit) && !limit.equals("제한사항 없음")) parts.add("제한사항: " + limit);
+        if (meaningful(fee) && !fee.equals("없음")) parts.add("동반 추가 요금: " + fee);
+        return parts.isEmpty() ? null : cut(String.join(" · ", parts), 1000);
+    }
+
+    static boolean meaningful(String s) { return s != null && !s.isEmpty() && !s.equals("정보없음") && !s.equals("해당없음"); }
+
+    static String md5(String s) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** places.source_key(공공데이터 출처 키) 칼럼 · UNIQUE · 카테고리가 없으면 추가 (여러 번 실행해도 안전) */
+    static void ensurePlaceColumns(Connection con) throws SQLException {
+        try (Statement st = con.createStatement()) {
+            if (!columnExists(con, "places", "source_key")) {
+                st.execute("ALTER TABLE places ADD COLUMN source_key CHAR(32) NULL "
+                        + "COMMENT '공공데이터 출처 키 MD5(시설명|주소) (직접 넣은 장소는 NULL)' AFTER indoor_outdoor");
+                System.out.println("  + 칼럼 추가: places.source_key");
+            }
+            if (!indexExists(con, "places", "uk_places_source_key")) {
+                st.execute("ALTER TABLE places ADD UNIQUE KEY uk_places_source_key (source_key)");
+                System.out.println("  + UNIQUE 추가: places.source_key");
+            }
+        }
+        try (PreparedStatement ps = con.prepareStatement("INSERT IGNORE INTO place_categories (name) VALUES (?)")) {
+            for (String n : PLACE_CATEGORY_NAMES) { ps.setString(1, n); ps.addBatch(); }
+            ps.executeBatch();
+        }
+    }
+
+    static final String PLACE_COLS = "category_id, name, address, phone, latitude, longitude, description, allowed_size, indoor_outdoor, source_key";
+    static final String PLACE_UPDATE = "ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), "
+            + "address = VALUES(address), phone = COALESCE(VALUES(phone), phone), latitude = VALUES(latitude), "
+            + "longitude = VALUES(longitude), description = VALUES(description), allowed_size = VALUES(allowed_size), "
+            + "indoor_outdoor = VALUES(indoor_outdoor)";
+    static final String CATEGORY_ID = "(SELECT category_id FROM place_categories WHERE name = %s)";
+
+    static void upsertPlaces(Connection con, List<PlaceRow> list) throws SQLException {
+        String sql = "INSERT INTO places (" + PLACE_COLS + ") VALUES (" + String.format(CATEGORY_ID, "?")
+                + ", ?, ?, ?, ?, ?, ?, ?, ?, ?) " + PLACE_UPDATE;
+        boolean auto = con.getAutoCommit();
+        con.setAutoCommit(false);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            int n = 0;
+            for (PlaceRow p : list) {
+                ps.setString(1, p.category);
+                ps.setString(2, p.name);
+                ps.setString(3, p.address);
+                ps.setString(4, p.phone);
+                ps.setBigDecimal(5, new java.math.BigDecimal(String.format(Locale.ROOT, "%.7f", p.lat)));
+                ps.setBigDecimal(6, new java.math.BigDecimal(String.format(Locale.ROOT, "%.7f", p.lng)));
+                ps.setString(7, p.description);
+                ps.setString(8, p.size);
+                ps.setString(9, p.inout);
+                ps.setString(10, p.key);
+                ps.addBatch();
+                if (++n % BATCH == 0) { ps.executeBatch(); System.out.printf("\r  places 저장 중 %,d / %,d", n, list.size()); }
+            }
+            ps.executeBatch();
+            con.commit();
+            System.out.printf("\r✔ places 저장 완료 %,d곳%n", n);
+        } catch (SQLException e) {
+            con.rollback();
+            System.err.println("\n✘ places 저장 실패 → 롤백했어요");
+            throw e;
+        } finally {
+            con.setAutoCommit(auto);
+        }
+    }
+
+    /** 공공데이터 장소 ↔ 반경 1km 지하철역 매핑 (지하철역 기준 탐색 · 장소 상세의 "가까운 지하철역"용) */
+    static final String MAP_PLACE_STATIONS = "INSERT IGNORE INTO place_stations (place_id, station_id, distance_km)\n"
+            + "SELECT p.place_id, s.station_id, ROUND(ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(s.longitude, s.latitude)) / 1000, 2)\n"
+            + "FROM places p JOIN stations s\n"
+            + "  ON s.latitude BETWEEN p.latitude - 0.01 AND p.latitude + 0.01\n"
+            + " AND s.longitude BETWEEN p.longitude - 0.013 AND p.longitude + 0.013\n"
+            + "WHERE p.source_key IS NOT NULL\n"
+            + "  AND ST_Distance_Sphere(POINT(p.longitude, p.latitude), POINT(s.longitude, s.latitude)) <= 1000";
+
+    static void mapPlaceStations(Connection con) throws SQLException {
+        try (Statement st = con.createStatement()) {
+            int n = st.executeUpdate(MAP_PLACE_STATIONS);
+            System.out.printf("✔ place_stations 매핑 추가 %,d건 (반경 1km)%n", n);
+        }
+    }
+
+    static void printPlaceSummary(List<PlaceRow> list) {
+        Map<String, Integer> byCat = new TreeMap<>();
+        for (PlaceRow p : list) byCat.merge(p.category, 1, Integer::sum);
+        System.out.println("---- 동반 장소 카테고리별: " + byCat);
+        long local = list.stream().filter(p -> p.address.contains("목포시") || p.address.contains("무안군")).count();
+        System.out.printf("---- 목포시 · 무안군: %,d곳%n", local);
+        list.stream().filter(p -> p.address.contains("목포시") || p.address.contains("무안군")).limit(8).forEach(p -> System.out.printf(
+                "  [%s] %s | %s | %s · %s | %.6f, %.6f%n", p.category, p.name, p.address, p.size, p.inout, p.lat, p.lng));
+    }
+
+    static void writePlaceInserts(BufferedWriter w, List<PlaceRow> list) throws IOException {
+        for (String n : PLACE_CATEGORY_NAMES) w.write("INSERT IGNORE INTO place_categories (name) VALUES (" + q(n) + ");\n");
+        for (int i = 0; i < list.size(); i += BATCH) {
+            w.write("INSERT INTO places (" + PLACE_COLS + ") VALUES\n");
+            List<PlaceRow> part = list.subList(i, Math.min(i + BATCH, list.size()));
+            for (int j = 0; j < part.size(); j++) {
+                PlaceRow p = part.get(j);
+                w.write(String.format(Locale.ROOT, "(%s, %s, %s, %s, %.7f, %.7f, %s, %s, %s, %s)",
+                        String.format(CATEGORY_ID, q(p.category)), q(p.name), q(p.address), q(p.phone), p.lat, p.lng,
+                        q(p.description), q(p.size), q(p.inout), q(p.key)) + (j == part.size() - 1 ? "\n" : ",\n"));
+            }
+            w.write(PLACE_UPDATE + ";\n");
+        }
+        w.write(MAP_PLACE_STATIONS + ";\n");
+    }
+
     // ------------------------------------------------------------------ --sql-out
-    static void writeSqlFile(Path out, List<Biz> hospitals, List<Biz> hotels) throws IOException {
+    static void writeSqlFile(Path out, List<Biz> hospitals, List<Biz> hotels, List<PlaceRow> places) throws IOException {
         try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
             w.write("-- 펫플래닛 공공데이터 (PublicDataLoader --sql-out 으로 생성)\n");
-            w.write("-- 먼저 db/patch_be2_public_data.sql 을 실행해 license_no 칼럼을 추가해 주세요.\n");
+            w.write("-- 먼저 db/patch_be2_public_data.sql 을 실행해 license_no · places.source_key 칼럼을 추가해 주세요.\n");
             w.write("SET NAMES utf8mb4;\nSTART TRANSACTION;\n");
             writeInserts(w, hospitals, true);
             writeInserts(w, hotels, false);
+            if (!places.isEmpty()) writePlaceInserts(w, places);
             w.write("COMMIT;\n");
         }
         System.out.println("✔ SQL 파일 저장: " + out.toAbsolutePath());
