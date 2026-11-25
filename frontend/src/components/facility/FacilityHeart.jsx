@@ -8,9 +8,10 @@ import { HeartIcon } from '../place/BookmarkButton.jsx';
 /**
  * 병원 · 호텔 찜 버튼 — 장소 찜(BookmarkButton)과 같은 방식: 낙관적 업데이트, 비로그인이면 로그인 화면으로,
  * 409 DUPLICATE_BOOKMARK 면 이미 찜한 상태로 맞춰요. 찜 목록은 마이페이지 "찜한 병원 · 호텔"에 모여요.
- * kind: 'HOSPITAL' | 'HOTEL', tone: 'night'(검정 바 위) | 'light'
+ * kind: 'HOSPITAL' | 'HOTEL', tone: 'night'(검정 바 위) | 'light', icon: 목록 카드용 원형 하트(장소 카드와 같은 모양)
+ * initial 을 주면 서버에 다시 묻지 않아요 (목록은 내 찜 목록을 한 번만 불러서 넘겨줘요)
  */
-export default function FacilityHeart({ kind, id, tone = 'light', initial, onChange }) {
+export default function FacilityHeart({ kind, id, tone = 'light', icon = false, className = '', initial, onChange }) {
   const { isLoggedIn } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -35,7 +36,9 @@ export default function FacilityHeart({ kind, id, tone = 'light', initial, onCha
     };
   }, [kind, id, isLoggedIn, initial]);
 
-  const toggle = async () => {
+  const toggle = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!isLoggedIn) {
       toast.show(`로그인하면 ${what}을 찜할 수 있어요`);
       navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`);
@@ -62,6 +65,13 @@ export default function FacilityHeart({ kind, id, tone = 'light', initial, onCha
     }
   };
 
+  if (icon) {
+    return (
+      <button type="button" className={`heart-btn ${on ? 'is-on' : ''} ${className}`} aria-pressed={on} aria-label={on ? `${what} 찜 해제` : `${what} 찜하기`} onClick={toggle} disabled={pending}>
+        <HeartIcon />
+      </button>
+    );
+  }
   return (
     <button type="button" className={`btn btn--md facility-heart facility-heart--${tone} ${on ? 'is-on' : ''}`} aria-pressed={on} onClick={toggle} disabled={pending}>
       <HeartIcon size={16} />

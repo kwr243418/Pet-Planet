@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { hospitalApi, hotelApi, placeApi } from '../api/index.js';
+import { facilityApi, hospitalApi, hotelApi, placeApi } from '../api/index.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { usePageTitle } from '../hooks/usePage.js';
 import { NowStation, PageHero } from '../components/layout/Site.jsx';
@@ -13,7 +14,7 @@ import RegionPicker from '../components/transit/RegionPicker.jsx';
 import { HospitalCard, HotelCard } from '../components/nearby/FacilityCards.jsx';
 import { readOrigin, saveOrigin } from '../utils/origin.js';
 import { normalizeSido, regionLabel } from '../utils/region.js';
-import { RESERVE_STEPS } from '../utils/reserve.js';
+import { RESERVE_STEPS, isReserveTab } from '../utils/reserve.js';
 
 export const EXPLORE_STEPS = ['출발점 · 지역 선택', '주변 장소 목록', '장소 상세', '관심 장소 찜'];
 const MODES = [
@@ -94,6 +95,8 @@ function useExploreState() {
     (patch) => {
       const n = { ...state, ...patch, filters: { ...state.filters, ...(patch.filters ?? {}) } };
       if (patch.mode && patch.mode !== state.mode && !patch.sort) n.sort = SORTS[n.mode][0].value;
+      // 동반 장소(탐색선) → 동물병원 · 펫호텔(예약선)로 넘어가면 메뉴로 들어올 때처럼 "예약 가능만"을 켜요
+      if (patch.tab && !isReserveTab(state.tab) && isReserveTab(patch.tab) && patch.reservable === undefined) n.reservable = true;
       const q = { mode: n.mode };
       if (n.mode === 'me' && n.me) Object.assign(q, { lat: n.me.lat, lng: n.me.lng, from: n.me.label });
       if (n.mode === 'region' && n.region?.sido) {
@@ -127,12 +130,41 @@ export default function Explore() {
   const listRef = useRef(null);
 
   const categories = useAsync(() => placeApi.categories(), [], { initial: [] });
+  // 병원 · 호텔 카드의 찜 하트: 내 찜 목록을 한 번만 불러서 "HOSPITAL:3" 모양으로 들고 있어요
+  const { isLoggedIn } = useAuth();
+  const [favs, setFavs] = useState(() => new Set());
+  useEffect(() => {
+    if (!isLoggedIn || tab === 'place') return undefined;
+    let alive = true;
+    facilityApi
+      .myBookmarks()
+      .then((rows) => alive && setFavs(new Set(rows.map((x) => `${x.kind}:${x.id}`))))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [isLoggedIn, tab]);
+  const onFacilityFav = (kind, id, on) =>
+    setFavs((s) => {
+      const n = new Set(s);
+      if (on) n.add(`${kind}:${id}`);
+      else n.delete(`${kind}:${id}`);
+      return n;
+    });
 
   // 기준: 내 근처 → 좌표 + 반경 / 지역별 → 시도 · 시군구
   const origin = mode === 'me' && me ? me : null;
   const baseQuery = mode === 'me' ? (me ? { lat: me.lat, lng: me.lng, radiusKm: filters.radiusKm } : null) : region?.sido ? { sido: region.sido, sigungu: region.sigungu ?? undefined } : null;
   const title = mode === 'me' ? (me ? `${me.label} 반경 ${filters.radiusKm}km` : '출발점을 골라 주세요') : region?.sido ? regionLabel(region) : '지역을 골라 주세요';
-  usePageTitle(baseQuery ? (mode === 'me' ? `${me.label} 주변 장소` : `${regionLabel(region)} 반려동물 동반 장소`) : '주변 탐색');
+  usePageTitle(
+    isReserveTab(tab)
+      ? `${baseQuery ? (mode === 'me' ? `${me.label} 주변 ` : `${regionLabel(region)} `) : ''}${tab === 'hospital' ? '동물병원' : '펫호텔'}`
+      : baseQuery
+        ? mode === 'me'
+          ? `${me.label} 주변 장소`
+          : `${regionLabel(region)} 반려동물 동반 장소`
+        : '주변 탐색',
+  );
 
   useEffect(() => writeLS(MODE_KEY, mode), [mode]);
   useEffect(() => {
@@ -193,15 +225,20 @@ export default function Explore() {
     update({ mode: 'me', me: o });
   };
   const what = (reservable ? '예약 가능한 ' : '') + TABS.find((t) => t.value === tab).label;
+  const reserveLine = isReserveTab(tab); // 동물병원 · 펫호텔 탭 = 예약선 (상단 메뉴 "병원 · 호텔")
 
   return (
     <>
-      {reservable ? (
+      {reserveLine ? (
         <PageHero
           line="R"
           en="RESERVE"
-          title={'예약 가능한\n병원 · 호텔'}
-          desc={'펫 플래닛에서 바로 예약할 수 있는 제휴 동물병원 · 펫호텔만 모았어요.\n"예약 가능만"을 끄면 주변 동물병원 · 펫호텔이 모두 보여요.'}
+          title={reservable ? '예약 가능한\n병원 · 호텔' : '동물병원 ·\n펫호텔 찾기'}
+          desc={
+            reservable
+              ? '펫 플래닛에서 바로 예약할 수 있는 제휴 동물병원 · 펫호텔만 모았어요.\n"예약 가능만"을 끄면 주변 동물병원 · 펫호텔이 모두 보여요.'
+              : '주변 동물병원 · 펫호텔을 모두 보여 드려요.\n"예약 가능" 표시가 있는 곳은 펫 플래닛에서 바로 예약할 수 있어요.'
+          }
         />
       ) : (
         <PageHero
@@ -211,7 +248,7 @@ export default function Explore() {
           desc={'내 위치나 지역을 고르면 반려동물과 갈 수 있는 장소와 동물병원 · 펫호텔을\n가까운 버스 정류장 · 대중교통 접근성과 함께 보여 드려요.'}
         />
       )}
-      <NowStation steps={reservable ? RESERVE_STEPS[tab] : EXPLORE_STEPS} current={reservable ? 0 : baseQuery ? 1 : 0} />
+      <NowStation steps={reserveLine ? RESERVE_STEPS[tab] : EXPLORE_STEPS} current={reserveLine ? 0 : baseQuery ? 1 : 0} />
 
       <div className="container explore">
         <div className="explore-mode">
@@ -302,7 +339,11 @@ export default function Explore() {
                 ) : (
                   <div className="facility-list">
                     {list.items.map((f, i) =>
-                      tab === 'hospital' ? <HospitalCard key={f.hospitalId} hospital={f} index={i + 1} origin={origin} /> : <HotelCard key={f.hotelId} hotel={f} index={i + 1} origin={origin} />,
+                      tab === 'hospital' ? (
+                        <HospitalCard key={f.hospitalId} hospital={f} index={i + 1} origin={origin} bookmarked={isLoggedIn ? favs.has(`HOSPITAL:${f.hospitalId}`) : false} onBookmarkChange={onFacilityFav} />
+                      ) : (
+                        <HotelCard key={f.hotelId} hotel={f} index={i + 1} origin={origin} bookmarked={isLoggedIn ? favs.has(`HOTEL:${f.hotelId}`) : false} onBookmarkChange={onFacilityFav} />
+                      ),
                     )}
                   </div>
                 )}

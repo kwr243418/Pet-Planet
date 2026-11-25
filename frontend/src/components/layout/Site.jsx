@@ -29,7 +29,7 @@ export function Logo() {
 export function SiteHeader({ tone = 'mint' }) {
   const { pathname, search } = useLocation();
   const { user, logout } = useAuth();
-  const reserveView = isReserveExplore(pathname, search); // 주변 탐색이지만 "예약 가능만"이면 예약선에 밑줄
+  const reserveView = isReserveExplore(pathname, search); // 탐색 화면의 동물병원 · 펫호텔 탭 = 예약선에 밑줄
   const navigate = useNavigate();
   return (
     <header className={`site-header site-header--${tone}`}>

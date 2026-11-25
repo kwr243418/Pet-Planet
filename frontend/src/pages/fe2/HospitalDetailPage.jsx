@@ -75,7 +75,7 @@ export default function HospitalDetailPage() {
       <PageHero line="R" en="CLINIC" compact title={hospital.name} desc="병원 정보와 방문 리뷰를 먼저 확인하는 화면이에요." art={<TinyDog size={140} />}>
         <p className="page-hero__desc">
           <Link to={hospital.partner ? reserveExploreUrl() : '/explore?tab=hospital'} className="text-link">
-            {hospital.partner ? '병원 · 호텔 › 예약 가능한 동물병원' : '주변 탐색 › 동물병원'}
+            {hospital.partner ? '병원 · 호텔 › 예약 가능한 동물병원' : '병원 · 호텔 › 동물병원'}
           </Link>
         </p>
       </PageHero>

@@ -2284,3 +2284,13 @@ html.fp-snap {
   font-size: 12.5px;
   color: var(--ink-2);
 }
+
+/* 병원 · 호텔 카드의 찜 하트 (장소 카드와 같은 원형) */
+.facility-card__heart {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+.facility-card__body {
+  padding-right: 44px;
+}
