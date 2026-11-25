@@ -3,8 +3,16 @@
 const BY_PRODUCT_ID = {
   1: '/images/e1-salmon-food.jpg', // 그레인프리 연어 사료 2kg
   2: '/images/e5-beef-food.jpg', // 소형견 저알러지 사료 1.5kg
+  3: '/images/e3-senior-food.jpg', // 시니어 관절 케어 사료 3kg
   4: '/images/e2-jerky.jpg', // 무첨가 닭가슴살 육포
   5: '/images/e6-dental-chew.jpg', // 덴탈 껌 15개입
+  6: '/images/e4-sweet-potato.jpg', // 고구마 말랭이 200g
+  7: '/images/h1-pee-pads.jpg', // 배변패드 100매
+  8: '/images/h2-shampoo.jpg', // 저자극 샴푸 300ml
+  9: '/images/h3-ear-cleaner.jpg', // 귀 세정제 120ml
+  10: '/images/i1-carrier.jpg', // 대중교통용 소프트 이동장
+  11: '/images/i2-harness.jpg', // 산책용 하네스 (소형)
+  12: '/images/i3-water-bottle.jpg', // 접이식 휴대 물병
 };
 
 const ENGRAVING_BY_CATEGORY = {
