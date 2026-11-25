@@ -524,7 +524,8 @@ h3,
   letter-spacing: 0.06em;
   color: var(--ink-2);
 }
-.opts__item.is-on {
+.opts__item.is-on,
+.opts__item.is-on:hover:not(:disabled) {
   background: var(--night);
   color: var(--on-night);
   font-weight: 400;
